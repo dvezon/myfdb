@@ -11,16 +11,24 @@ import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
 import 'package:firebase_ui_localizations/firebase_ui_localizations.dart';
 
-import 'firebase_options.dart'; // <- δημιουργείται με `flutterfire configure`
+import 'firebase_options.dart'; // generated with `flutterfire configure`
+import 'main_menu.dart'; // the MainMenu widget
+import 'appointments_page.dart';
 
-// ----------------- Providers -----------------
+// ---------------- Route names ----------------
+const String routeAppointments = '/appointments';
+const String routeLeaves = '/leaves';
+const String routeLogbook = '/logbook';
+const String routeSettings = '/settings';
+
+// ---------------- Auth providers -------------
 final emailAuthProvider = EmailAuthProvider();
 final googleProvider = GoogleProvider(
   clientId:
       '697374211054-83abftc39o0mtdi30bpc6fq4qst3unj5.apps.googleusercontent.com',
 );
-// ---------------------------------------------
 
+// ---------------- Firestore helper ----------
 Future<void> _saveUserToFirestore(auth.User user) async {
   final users = FirebaseFirestore.instance.collection('users');
   await users.doc(user.uid).set({
@@ -32,51 +40,86 @@ Future<void> _saveUserToFirestore(auth.User user) async {
   }, SetOptions(merge: true));
 }
 
-void main() async {
-  // <- H συνάρτηση main που έλειπε
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // ✅  Ενεργοποίηση persistence με τις νέες ρυθμίσεις
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true, // on-disk cache
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    // synchronizeTabs: true,          // υπάρχει μόνο στο web
+  );
+
   runApp(const MyApp());
 }
 
+// ====================================================
+//                       MyApp
+// ====================================================
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Firebase UI Auth Demo',
+      title: 'School Admin',
       debugShowCheckedModeBanner: false,
       localizationsDelegates: [
-        // όχι const λίστα
         FirebaseUILocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('el'), Locale('en')],
+      theme: ThemeData(
+        primarySwatch: Colors.blueGrey,
+        scaffoldBackgroundColor: Colors.grey.shade300,
+      ),
+
+      // Initial route depends on auth state
       initialRoute:
           auth.FirebaseAuth.instance.currentUser == null ? '/sign-in' : '/home',
+
+      // Named routes
       routes: {
+        // Authentication screen
         '/sign-in':
             (_) => SignInScreen(
               providers: [emailAuthProvider, googleProvider],
               actions: [
+                // Generic action για SignedIn state
                 AuthStateChangeAction<SignedIn>((context, state) {
                   final user = auth.FirebaseAuth.instance.currentUser;
+
                   if (user != null) {
                     _saveUserToFirestore(user); // fire-and-forget
                   }
+
                   Navigator.pushReplacementNamed(context, '/home');
                 }),
               ],
             ),
+
+        // Home
         '/home': (_) => const HomeScreen(),
+
+        // Functional placeholders
+        routeAppointments: (_) => const AppointmentsPage(),
+        routeLeaves: (_) => const PlaceholderScreen(title: 'Διαχείριση Αδειών'),
+        routeLogbook:
+            (_) => const PlaceholderScreen(
+              title: 'Καταγραφή ημερολογίου συμβάντων',
+            ),
+        routeSettings: (_) => const PlaceholderScreen(title: 'Ρυθμίσεις'),
       },
     );
   }
 }
 
+// ====================================================
+//                     HomeScreen
+// ====================================================
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -85,7 +128,7 @@ class HomeScreen extends StatelessWidget {
     final user = auth.FirebaseAuth.instance.currentUser;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Αρχική'),
+        title: Text('Καλωσήρθες, ${user?.displayName ?? 'Χρήστη'}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -93,7 +136,29 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(child: Text('Συνδεδεμένος ως: ${user?.email ?? "-"}')),
+      body: const MainMenu(), // Main navigation menu
+    );
+  }
+}
+
+// ====================================================
+//                 Generic placeholder page
+// ====================================================
+class PlaceholderScreen extends StatelessWidget {
+  final String title;
+  const PlaceholderScreen({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Text(
+          title,
+          style: const TextStyle(fontSize: 24),
+          textAlign: TextAlign.center,
+        ),
+      ),
     );
   }
 }
