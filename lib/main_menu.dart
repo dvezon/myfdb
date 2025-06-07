@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 /// Απλό κύριο μενού με τέσσερις επιλογές.
-/// Κάθε κάρτα μεταβαίνει σε μια named route μέσω [Navigator.pushNamed].
-///
-/// Για να το χρησιμοποιήσεις, απλώς βάλε:
-/// ```dart
-/// body: const MainMenu()
-/// ```
-/// μέσα στο Scaffold της αρχικής σου οθόνης.
+/// Κάθε κάρτα συνδέεται σε μια named route μέσω [Navigator.pushNamed].
+
+/// // ---------------- Route names ----------------
+const String routeAppointments = '/appointments';
+const String routeLeaves = '/leaves';
+const String routeLogbook = '/logbook';
+const String routeSettings = '/settings';
+
 class MainMenu extends StatelessWidget {
   const MainMenu({super.key});
 
@@ -53,7 +54,11 @@ class _MenuCard extends StatelessWidget {
           child: Center(
             child: Text(
               entry.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               textAlign: TextAlign.center,
             ),
           ),

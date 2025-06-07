@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -11,15 +10,14 @@ import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
 import 'package:firebase_ui_localizations/firebase_ui_localizations.dart';
 
-import 'firebase_options.dart'; // generated with `flutterfire configure`
-import 'main_menu.dart'; // the MainMenu widget
+import 'firebase_options.dart';
+import 'main_menu.dart';
 import 'appointments_page.dart';
+import 'event_diary_page.dart';
+import 'screen_settings.dart';
 
-// ---------------- Route names ----------------
-const String routeAppointments = '/appointments';
-const String routeLeaves = '/leaves';
-const String routeLogbook = '/logbook';
-const String routeSettings = '/settings';
+import 'package:flutter/material.dart';
+import 'greek_localizations.dart';
 
 // ---------------- Auth providers -------------
 final emailAuthProvider = EmailAuthProvider();
@@ -65,16 +63,29 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'School Admin',
       debugShowCheckedModeBanner: false,
+
+      locale: const Locale('el'), // ➜ πάντα ελληνικά
+      supportedLocales: const [Locale('el'), Locale('en')],
       localizationsDelegates: [
         FirebaseUILocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
+        const GreekLocalizationsDelegate(),
       ],
-      supportedLocales: const [Locale('el'), Locale('en')],
+
+      builder: (context, child) {
+        debugPrint('📌 Locale resolved: ${Localizations.localeOf(context)}');
+        final lbl = FirebaseUILocalizations.of(context);
+        debugPrint('🔤 signInActionText = ${lbl.labels.signInActionText}');
+        return child!;
+      },
+
       theme: ThemeData(
-        primarySwatch: Colors.blueGrey,
-        scaffoldBackgroundColor: Colors.grey.shade300,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ).copyWith(
+        scaffoldBackgroundColor: const Color(0xFFE8F5E9), // ✳️ Απαλό πράσινο
       ),
 
       // Initial route depends on auth state
@@ -107,11 +118,8 @@ class MyApp extends StatelessWidget {
         // Functional placeholders
         routeAppointments: (_) => const AppointmentsPage(),
         routeLeaves: (_) => const PlaceholderScreen(title: 'Διαχείριση Αδειών'),
-        routeLogbook:
-            (_) => const PlaceholderScreen(
-              title: 'Καταγραφή ημερολογίου συμβάντων',
-            ),
-        routeSettings: (_) => const PlaceholderScreen(title: 'Ρυθμίσεις'),
+        routeLogbook: (_) => const EventDiaryPage(year: 2025),
+        routeSettings: (_) => const EditFieldsScreen(),
       },
     );
   }
