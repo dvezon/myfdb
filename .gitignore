@@ -45,3 +45,4 @@ app.*.map.json
 /android/app/release
 
 /assets/sa.json
+assets/gsheets_credentials.json
