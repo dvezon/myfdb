@@ -118,7 +118,9 @@ class MyApp extends StatelessWidget {
         // Functional placeholders
         routeAppointments: (_) => const AppointmentsPage(),
         routeLeaves: (_) => const PlaceholderScreen(title: 'Διαχείριση Αδειών'),
-        routeLogbook: (_) => const EventDiaryPage(year: 2025),
+        routeCreateDoc:
+            (_) => const PlaceholderScreen(title: 'Δημιουργία Εγγράφου'),
+        routeLogBook: (_) => const EventDiaryPage(year: 2025),
         routeSettings: (_) => const EditFieldsScreen(),
       },
     );

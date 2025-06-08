@@ -151,6 +151,7 @@ class _EditFieldsScreenState extends State<EditFieldsScreen> {
             flex: 9,
             child: BorderedBox(
               child: SingleChildScrollView(
+                padding: const EdgeInsets.only(top: 8),
                 child: Column(children: _buildFields(cs)),
               ),
             ),

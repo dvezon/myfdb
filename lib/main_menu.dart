@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'mywidgets.dart';
 
-/// Απλό κύριο μενού με τέσσερις επιλογές.
-/// Κάθε κάρτα συνδέεται σε μια named route μέσω [Navigator.pushNamed].
-
 /// // ---------------- Route names ----------------
 const String routeAppointments = '/appointments';
 const String routeLeaves = '/leaves';
-const String routeLogbook = '/logbook';
+const String routeCreateDoc = '/createdoc';
+const String routeLogBook = '/logbook';
 const String routeSettings = '/settings';
 
 class MainMenu extends StatelessWidget {
@@ -16,22 +14,108 @@ class MainMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = <_MenuEntry>[
-      const _MenuEntry('Διαχείριση ραντεβού', '/appointments'),
-      const _MenuEntry('Διαχείριση Αδειών', '/leaves'),
-      const _MenuEntry('Καταγραφή ημερολογίου συμβάντων', '/logbook'),
-      const _MenuEntry('Ρυθμίσεις', '/settings'),
+      const _MenuEntry('Διαχείριση Ραντεβού', routeAppointments),
+      const _MenuEntry('Διαχείριση Αδειών', routeLeaves),
+      const _MenuEntry('Δημιουργία Εγγράφου', routeCreateDoc),
+      const _MenuEntry('Καταγραφή Ημερολογίου Συμβάντων', routeLogBook),
+      const _MenuEntry('Ρυθμίσεις', routeSettings),
     ];
 
-    return BorderedBox(
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: entries.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (_, index) => _MenuCard(entry: entries[index]),
-      ),
+    return Column(
+      children: [
+        // ─────────────────── ΠΑΝΩ BorderedBox ───────────────────
+        Flexible(
+          flex: 6,
+          child: BorderedBox(
+            // ► Μηδενίζουμε όλα τα “εξτρά” padding εδώ,
+            //    θα βάλουμε ό,τι χρειάζεται απευθείας στο ListView.
+            // outerPadding: EdgeInsets.zero,
+            innerPadding: EdgeInsets.zero,
+
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // --- ρυθμίσεις ---
+                const double separator = 12; // κενό μεταξύ καρτών
+                const double vPad = 16; // πάνω + κάτω (8 + 8) που ΘΕΛΟΥΜΕ
+
+                // --- διαθέσιμο ύψος για ΟΛΑ τα στοιχεία ---
+                final double totalSpacing = separator * (entries.length - 1);
+                const double totalPadding = vPad; // top+bottom συνολικά
+                final double itemHeight =
+                    (constraints.maxHeight - totalSpacing - totalPadding) /
+                    entries.length;
+
+                return ListView.separated(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: vPad / 2,
+                    horizontal: 16,
+                  ),
+                  itemCount: entries.length,
+                  separatorBuilder:
+                      (_, __) => const SizedBox(height: separator),
+                  itemBuilder:
+                      (_, index) => SizedBox(
+                        height: itemHeight,
+                        child: _MenuCard(entry: entries[index]),
+                      ),
+                );
+              },
+            ),
+          ),
+        ),
+
+        // ─────────────────── ΚΑΤΩ BorderedBox ───────────────────
+        const Flexible(
+          flex: 4,
+          child: BorderedBox(child: Center(child: Text('Διπλωματική'))),
+        ),
+      ],
     );
   }
 }
+
+/*Column(
+      children: [
+        Flexible(
+          flex: 6,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const double vPad = 8; // κάθετο padding ListView
+              const double spacing = 12; // SizedBox ανάμεσα
+              const double totalPadding = vPad * 2;
+              final double totalSpacing = spacing * (entries.length - 1);
+              final double itemHeight =
+                  (constraints.maxHeight - totalPadding - totalSpacing) /
+                  entries.length;
+
+              return BorderedBox(
+                child: ListView.separated(
+                  physics: const NeverScrollableScrollPhysics(), // προαιρετικά
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: vPad,
+                  ),
+                  itemCount: entries.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: spacing),
+                  itemBuilder:
+                      (_, index) => SizedBox(
+                        height: itemHeight,
+                        child: _MenuCard(entry: entries[index]),
+                      ),
+                ),
+              );
+            },
+          ),
+        ),
+        const Flexible(
+          flex: 4,
+          child: BorderedBox(child: Center(child: Text('Διπλωματική'))),
+        ),
+      ],
+    );
+  }
+}*/
 
 /// Εσωτερικό μοντέλο για κάθε επιλογή μενού
 class _MenuEntry {
@@ -53,7 +137,7 @@ class _MenuCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         onTap: () => Navigator.pushNamed(context, entry.route),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24.0),
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
           child: Center(
             child: Text(
               entry.title,
