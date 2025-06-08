@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'mywidgets.dart';
 
-/// ----------  Βοηθητικό: συλλογή ραντεβού χρήστη  ----------
+// ---------------- Firestore ----------------
 CollectionReference<Map<String, dynamic>> _appointmentsRef() {
   final uid = FirebaseAuth.instance.currentUser!.uid;
   return FirebaseFirestore.instance
@@ -11,7 +12,6 @@ CollectionReference<Map<String, dynamic>> _appointmentsRef() {
       .collection('appointments');
 }
 
-/// -------------  Κύρια οθόνη Διαχείρισης Ραντεβού -------------
 class AppointmentsPage extends StatelessWidget {
   const AppointmentsPage({super.key});
 
@@ -47,75 +47,102 @@ class AppointmentsPage extends StatelessWidget {
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add),
                     label: const Text('Νέο ραντεβού'),
-                    onPressed: () => _showAddDialog(context),
+                    onPressed: () => _showAppointmentDialog(context),
                   ),
                 ],
               ),
             );
           }
 
-          return ListView.separated(
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
-            itemBuilder: (context, i) {
-              final data = docs[i].data();
-              final dt = (data['dateTime'] as Timestamp).toDate();
+          return BorderedBox(
+            child: ListView.separated(
+              itemCount: docs.length,
+              separatorBuilder: (_, __) => const Divider(height: 0),
+              itemBuilder: (context, i) {
+                final doc = docs[i];
+                final data = doc.data();
+                final dt = (data['dateTime'] as Timestamp).toDate();
 
-              return ListTile(
-                title: Text(data['title'] ?? '—'),
-                subtitle: Text(
-                  '${dt.day}/${dt.month}/${dt.year}  '
-                  '${dt.hour.toString().padLeft(2, "0")}:'
-                  '${dt.minute.toString().padLeft(2, "0")}\n'
-                  '${data['notes'] ?? ''}',
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => docs[i].reference.delete(),
-                ),
-              );
-            },
+                return ListTile(
+                  title: Text(data['title'] ?? '—'),
+                  subtitle: Text(
+                    '${dt.day}/${dt.month}/${dt.year}  '
+                    '${dt.hour.toString().padLeft(2, "0")}:'
+                    '${dt.minute.toString().padLeft(2, "0")}\n'
+                    '${data['notes'] ?? ''}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ---------- EDIT ----------
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        tooltip: 'Επεξεργασία',
+                        onPressed:
+                            () => _showAppointmentDialog(context, doc: doc),
+                      ),
+                      // ---------- DELETE ----------
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 20),
+                        tooltip: 'Διαγραφή',
+                        onPressed: () => doc.reference.delete(),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddDialog(context),
+        onPressed: () => _showAppointmentDialog(context),
         child: const Icon(Icons.add),
       ),
     );
   }
 }
 
-/// -------------  Dialog για νέο ραντεβού -------------
-void _showAddDialog(BuildContext context) {
-  final titleCtrl = TextEditingController();
-  final notesCtrl = TextEditingController();
-  DateTime? selectedDateTime;
+// -------------------------------------------------------------------
+// Dialog για προσθήκη *ή* επεξεργασία ραντεβού
+// Αν doc == null → ADD, αλλιώς EDIT
+// -------------------------------------------------------------------
+void _showAppointmentDialog(
+  BuildContext context, {
+  DocumentSnapshot<Map<String, dynamic>>? doc,
+}) {
+  final data = doc?.data();
+  final titleCtrl = TextEditingController(text: data?['title'] ?? '');
+  final notesCtrl = TextEditingController(text: data?['notes'] ?? '');
+  DateTime? selectedDateTime =
+      data?['dateTime'] != null
+          ? (data!['dateTime'] as Timestamp).toDate()
+          : null;
 
   showDialog(
     context: context,
     builder:
         (ctx) => StatefulBuilder(
           builder: (ctx, setState) {
-            /// Επιλογή ημερομηνίας & ώρας με ασφαλή χρήση context
             Future<void> pickDateTime() async {
               final now = DateTime.now();
-
-              // ----- Ημερομηνία -----
+              // ημερομηνία
               final date = await showDatePicker(
                 context: ctx,
                 useRootNavigator: false,
                 firstDate: now,
-                initialDate: now,
+                initialDate: selectedDateTime ?? now,
                 lastDate: DateTime(now.year + 5),
               );
               if (date == null || !ctx.mounted) return;
-
-              // ----- Ώρα -----
+              // ώρα
               final time = await showTimePicker(
                 context: ctx,
                 useRootNavigator: false,
-                initialTime: TimeOfDay.fromDateTime(now),
+                initialTime:
+                    selectedDateTime != null
+                        ? TimeOfDay.fromDateTime(selectedDateTime!)
+                        : TimeOfDay.fromDateTime(now),
               );
               if (time == null || !ctx.mounted) return;
 
@@ -131,7 +158,9 @@ void _showAddDialog(BuildContext context) {
             }
 
             return AlertDialog(
-              title: const Text('Νέο ραντεβού'),
+              title: Text(
+                doc == null ? 'Νέο ραντεβού' : 'Επεξεργασία ραντεβού',
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -168,9 +197,9 @@ void _showAddDialog(BuildContext context) {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    // ---- Validation ----
-                    if (titleCtrl.text.trim().isEmpty ||
-                        selectedDateTime == null) {
+                    final title = titleCtrl.text.trim();
+                    final dateTime = selectedDateTime;
+                    if (title.isEmpty || dateTime == null) {
                       if (!ctx.mounted) return;
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         const SnackBar(
@@ -180,13 +209,23 @@ void _showAddDialog(BuildContext context) {
                       return;
                     }
 
-                    // ---- Αποθήκευση ----
-                    await _appointmentsRef().add({
-                      'title': titleCtrl.text.trim(),
-                      'notes': notesCtrl.text.trim(),
-                      'dateTime': Timestamp.fromDate(selectedDateTime!),
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
+                    if (doc == null) {
+                      // --- ADD ---
+                      await _appointmentsRef().add({
+                        'title': title,
+                        'notes': notesCtrl.text.trim(),
+                        'dateTime': Timestamp.fromDate(dateTime),
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
+                    } else {
+                      // --- EDIT ---
+                      await doc.reference.update({
+                        'title': title,
+                        'notes': notesCtrl.text.trim(),
+                        'dateTime': Timestamp.fromDate(dateTime),
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
+                    }
 
                     if (ctx.mounted) Navigator.pop(ctx);
                   },

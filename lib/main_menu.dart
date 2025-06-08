@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'mywidgets.dart';
 
 /// Απλό κύριο μενού με τέσσερις επιλογές.
 /// Κάθε κάρτα συνδέεται σε μια named route μέσω [Navigator.pushNamed].
@@ -21,11 +22,13 @@ class MainMenu extends StatelessWidget {
       const _MenuEntry('Ρυθμίσεις', '/settings'),
     ];
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: entries.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, index) => _MenuCard(entry: entries[index]),
+    return BorderedBox(
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: entries.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, index) => _MenuCard(entry: entries[index]),
+      ),
     );
   }
 }

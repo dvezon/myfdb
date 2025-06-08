@@ -1,6 +1,7 @@
 // ------------------------------
 // event_diary_page.dart
 // Καταγραφή Ημερολογίου Συμβάντων + Εξαγωγή με HTTP POST προς Google Apps Script
+
 // ------------------------------
 
 import 'dart:convert';
@@ -8,8 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'mywidgets.dart';
 
-// ---------------- Firestore ----------------
+// ---------------- Firestore  ----------------
 CollectionReference<Map<String, dynamic>> _eventsRef() {
   final uid = FirebaseAuth.instance.currentUser!.uid;
   return FirebaseFirestore.instance
@@ -20,12 +22,13 @@ CollectionReference<Map<String, dynamic>> _eventsRef() {
 
 class EventDiaryPage extends StatelessWidget {
   const EventDiaryPage({super.key, required this.year});
-
   final int year;
   DateTime get _firstDayOfYear => DateTime(year, 1, 1);
 
   @override
   Widget build(BuildContext context) {
+    //final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Καταγραφή ημερολογίου συμβάντων'),
@@ -33,7 +36,7 @@ class EventDiaryPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.upload_file_outlined),
             tooltip: 'Εξαγωγή σε Google Sheets',
-            onPressed: () => _exportToSheets(context),
+            onPressed: () => _exportToSheets(context, _firstDayOfYear),
           ),
         ],
       ),
@@ -72,24 +75,42 @@ class EventDiaryPage extends StatelessWidget {
               ),
             );
           }
-          return ListView.separated(
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
-            itemBuilder: (context, i) {
-              final data = docs[i].data();
-              final dt = (data['date'] as Timestamp).toDate();
-              return ListTile(
-                leading: Text(
-                  '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                title: Text(data['event'] ?? '—'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_forever_sharp),
-                  onPressed: () => docs[i].reference.delete(),
-                ),
-              );
-            },
+          return BorderedBox(
+            child: ListView.separated(
+              itemCount: docs.length,
+              separatorBuilder: (_, __) => const Divider(height: 0),
+              itemBuilder: (context, i) {
+                final doc = docs[i];
+                final data = doc.data();
+                final dt = (data['date'] as Timestamp).toDate();
+
+                return ListTile(
+                  leading: Text(
+                    '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  title: Text(data['event'] ?? '—'),
+                  //tileColor: cs.surfaceContainerLowest,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ---------- EDIT ----------
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        tooltip: 'Επεξεργασία',
+                        onPressed: () => _showEditDialog(context, doc: doc),
+                      ),
+                      // ---------- DELETE ----------
+                      IconButton(
+                        icon: const Icon(Icons.delete_forever_sharp, size: 20),
+                        tooltip: 'Διαγραφή',
+                        onPressed: () => docs[i].reference.delete(),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
@@ -100,14 +121,46 @@ class EventDiaryPage extends StatelessWidget {
     );
   }
 
+  // ---------------- Προσθήκη νέου συμβάντος ----------------
   void _showAddDialog(BuildContext context, {required DateTime firstDay}) {
-    final eventCtrl = TextEditingController();
+    _showEventDialog(context, firstDay: firstDay);
+  }
 
-    DateTime? selectedDate;
+  // ---------------- Edit υπάρχοντος συμβάντος ----------------
+  void _showEditDialog(
+    BuildContext context, {
+    required DocumentSnapshot<Map<String, dynamic>> doc,
+  }) {
+    final data = doc.data()!;
+    _showEventDialog(
+      context,
+      firstDay: _firstDayOfYear,
+      initialText: data['event'] ?? '',
+      initialDate: (data['date'] as Timestamp).toDate(),
+      onSave: (text, date) async {
+        await doc.reference.update({
+          'event': text,
+          'date': Timestamp.fromDate(date),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      },
+    );
+  }
+
+  // ---------------- Διαλογικό modal για Add / Edit ----------------
+  void _showEventDialog(
+    BuildContext context, {
+    required DateTime firstDay,
+    String initialText = '',
+    DateTime? initialDate,
+
+    Future<void> Function(String text, DateTime date)? onSave,
+  }) {
+    final textCtrl = TextEditingController(text: initialText);
+    DateTime? selectedDate = initialDate;
 
     showDialog(
       context: context,
-
       builder:
           (ctx) => StatefulBuilder(
             builder: (ctx, setState) {
@@ -117,50 +170,38 @@ class EventDiaryPage extends StatelessWidget {
                   context: ctx,
                   useRootNavigator: false,
                   firstDate: firstDay,
-                  initialDate: now.year == year ? now : firstDay,
+                  initialDate:
+                      selectedDate ?? (now.year == year ? now : firstDay),
                   lastDate: DateTime(year, 12, 31),
                 );
                 if (date == null || !ctx.mounted) return;
                 setState(() => selectedDate = date);
               }
 
-              final colorScheme = Theme.of(ctx).colorScheme;
+              final cs = Theme.of(ctx).colorScheme;
               return AlertDialog(
-                title: const Text('Νέο συμβάν'),
+                title: Text(
+                  initialText.isEmpty ? 'Νέο συμβάν' : 'Επεξεργασία συμβάντος',
+                ),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    //TextField(
-                    //  controller: eventCtrl,
-                    //  decoration: const InputDecoration(
-                    //    labelText: 'Περιγραφή συμβάντος',
-                    //  ),
-
-                    //),
                     TextField(
-                      controller: eventCtrl,
-                      style: TextStyle(color: colorScheme.onSurface),
+                      controller: textCtrl,
+                      style: TextStyle(color: cs.onSurface),
                       decoration: InputDecoration(
                         labelText: 'Περιγραφή συμβάντος',
-                        labelStyle: TextStyle(color: colorScheme.primary),
+                        labelStyle: TextStyle(color: cs.primary),
                         filled: true,
-                        fillColor:
-                            Theme.of(ctx).colorScheme.surfaceContainerLow,
+                        fillColor: cs.surfaceContainerLow,
                         border: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: colorScheme.outlineVariant,
-                          ),
+                          borderSide: BorderSide(color: cs.outlineVariant),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: colorScheme.primary,
-                            width: 2,
-                          ),
+                          borderSide: BorderSide(color: cs.primary, width: 2),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: colorScheme.outlineVariant,
-                          ),
+                          borderSide: BorderSide(color: cs.outlineVariant),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -186,8 +227,9 @@ class EventDiaryPage extends StatelessWidget {
                   ),
                   ElevatedButton(
                     onPressed: () async {
-                      if (eventCtrl.text.trim().isEmpty ||
-                          selectedDate == null) {
+                      final text = textCtrl.text.trim();
+                      final date = selectedDate;
+                      if (text.isEmpty || date == null) {
                         if (!ctx.mounted) return;
                         ScaffoldMessenger.of(ctx).showSnackBar(
                           const SnackBar(
@@ -196,11 +238,17 @@ class EventDiaryPage extends StatelessWidget {
                         );
                         return;
                       }
-                      await _eventsRef().add({
-                        'event': eventCtrl.text.trim(),
-                        'date': Timestamp.fromDate(selectedDate!),
-                        'createdAt': FieldValue.serverTimestamp(),
-                      });
+
+                      // default save: ADD new entry
+                      if (onSave == null) {
+                        await _eventsRef().add({
+                          'event': text,
+                          'date': Timestamp.fromDate(date),
+                          'createdAt': FieldValue.serverTimestamp(),
+                        });
+                      } else {
+                        await onSave(text, date);
+                      }
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
                     child: const Text('Αποθήκευση'),
@@ -212,17 +260,20 @@ class EventDiaryPage extends StatelessWidget {
     );
   }
 
-  // ---------------- Εξαγωγή σε Google Sheets μέσω HTTP POST ----------------
-  Future<void> _exportToSheets(BuildContext context) async {
-    const webAppUrl = 'https://script.google.com/macros/s/ΤΟ_URL_ΣΟΥ/exec';
-
+  Future<void> _exportToSheets(
+    BuildContext context,
+    DateTime firstDayOfYear,
+  ) async {
+    const webAppUrl =
+        'https://script.google.com/macros/s/AKfycbxDji48s2N15OhSz_wvp_R0cZMVNoE0CjB9aWH53q-lqGN1PLjow5UPEKzfbnM3jOPOIA/exec';
+    //print('🔗 URL προς αποστολή: $webAppUrl');
     try {
       final snapshot =
           await _eventsRef()
               .orderBy('date')
               .where(
                 'date',
-                isGreaterThanOrEqualTo: Timestamp.fromDate(_firstDayOfYear),
+                isGreaterThanOrEqualTo: Timestamp.fromDate(firstDayOfYear),
               )
               .get();
 
@@ -237,7 +288,18 @@ class EventDiaryPage extends StatelessWidget {
             };
           }).toList();
 
-      final response = await http.post(
+      if (data.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❗Δεν υπάρχουν δεδομένα προς εξαγωγή'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final res = await http.post(
         Uri.parse(webAppUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'records': data}),
@@ -246,12 +308,22 @@ class EventDiaryPage extends StatelessWidget {
       if (!context.mounted) return;
       final messenger = ScaffoldMessenger.of(context);
 
-      if (response.statusCode == 200) {
+      // Ανίχνευση επιτυχίας
+      if ((res.statusCode == 200 || res.statusCode == 302) &&
+          res.body.trim().isNotEmpty) {
         messenger.showSnackBar(
           const SnackBar(content: Text('✅ Εξαγωγή ολοκληρώθηκε!')),
         );
+
+        // Προαιρετική καταγραφή στο Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(FirebaseAuth.instance.currentUser!.uid)
+            .collection('exports')
+            .add({'timestamp': FieldValue.serverTimestamp()});
       } else {
-        throw Exception('Σφάλμα από server: ${response.body}');
+        // Αν πάρουμε HTML ή redirect, εμφάνισε κατάλληλο σφάλμα
+        throw Exception('Σφάλμα από server: ${res.statusCode}\n${res.body}');
       }
     } catch (e) {
       if (context.mounted) {
