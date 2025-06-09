@@ -1,23 +1,25 @@
 // ------------------------------
 // event_diary_page.dart
 // Καταγραφή Ημερολογίου Συμβάντων + Εξαγωγή με HTTP POST προς Google Apps Script
-
 // ------------------------------
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+//import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'mywidgets.dart';
 import 'myfunctions.dart';
+import 'main.dart' show globalUid;
 
 // ---------------- Firestore  ----------------
 CollectionReference<Map<String, dynamic>> _eventsRef() {
-  final uid = FirebaseAuth.instance.currentUser!.uid;
+  if (globalUid == null) {
+    throw Exception('Ο χρήστης δεν είναι συνδεδεμένος');
+  }
   return FirebaseFirestore.instance
       .collection('users')
-      .doc(uid)
+      .doc(globalUid)
       .collection('diaryEvents');
 }
 
@@ -28,8 +30,6 @@ class EventDiaryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Καταγραφή ημερολογίου συμβάντων'),
@@ -91,17 +91,14 @@ class EventDiaryPage extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   title: Text(data['event'] ?? '—'),
-                  //tileColor: cs.surfaceContainerLowest,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ---------- EDIT ----------
                       IconButton(
                         icon: const Icon(Icons.edit, size: 20),
                         tooltip: 'Επεξεργασία',
                         onPressed: () => _showEditDialog(context, doc: doc),
                       ),
-                      // ---------- DELETE ----------
                       IconButton(
                         icon: const Icon(Icons.delete_forever_sharp, size: 20),
                         tooltip: 'Διαγραφή',
@@ -122,12 +119,10 @@ class EventDiaryPage extends StatelessWidget {
     );
   }
 
-  // ---------------- Προσθήκη νέου συμβάντος ----------------
   void _showAddDialog(BuildContext context, {required DateTime firstDay}) {
     _showEventDialog(context, firstDay: firstDay);
   }
 
-  // ---------------- Edit υπάρχοντος συμβάντος ----------------
   void _showEditDialog(
     BuildContext context, {
     required DocumentSnapshot<Map<String, dynamic>> doc,
@@ -148,13 +143,11 @@ class EventDiaryPage extends StatelessWidget {
     );
   }
 
-  // ---------------- Διαλογικό modal για Add / Edit ----------------
   void _showEventDialog(
     BuildContext context, {
     required DateTime firstDay,
     String initialText = '',
     DateTime? initialDate,
-
     Future<void> Function(String text, DateTime date)? onSave,
   }) {
     final textCtrl = TextEditingController(text: initialText);
@@ -239,8 +232,6 @@ class EventDiaryPage extends StatelessWidget {
                         );
                         return;
                       }
-
-                      // default save: ADD new entry
                       if (onSave == null) {
                         await _eventsRef().add({
                           'event': text,
@@ -265,22 +256,49 @@ class EventDiaryPage extends StatelessWidget {
     BuildContext context,
     DateTime firstDayOfYear,
   ) async {
-    // ------------------------------------------------------
-    // 0.  Βρες UID και folderId του χρήστη
-    // ------------------------------------------------------
-    final uid = driveFolderIdFromUrl(FirebaseAuth.instance.currentUser!.uid);
+    final uid = globalUid;
 
-    // Ρύθμισε εδώ το ακριβές path & key που χρησιμοποιείς
-    const googleFolderKey = 'googleFolderId'; // πεδίο στο settings
-    final settingsSnap =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .collection('settings')
-            .doc('app')
-            .get();
+    print('=========================================================');
+    print('📌 Trying to read settings for UID: $uid');
+    if (uid == null) {
+      print('⚠️ No UID available (user not logged in)');
+      return;
+    }
+    const googleFolderKey = 'googleFolder';
 
-    final folderId = settingsSnap.data()?[googleFolderKey] as String?;
+    DocumentSnapshot<Map<String, dynamic>>? settingsSnap;
+    String? folderId;
+
+    try {
+      settingsSnap =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('settings')
+              .doc('app')
+              .get();
+
+      print('📦 settingsSnap.exists: ${settingsSnap.exists}');
+      print('📦 folder = ${settingsSnap.data()}');
+
+      final rawFolder = settingsSnap.data()?[googleFolderKey] as String?;
+      print('📦 11111 rawFolder = ${rawFolder} = ');
+
+      if (settingsSnap.exists) {
+        final rawFolder = settingsSnap.data()?[googleFolderKey] as String?;
+        print('📦 2222 rawFolder = ${rawFolder} = ');
+
+        if (rawFolder != null) {
+          folderId = driveFolderIdFromUrl(rawFolder);
+          print(folderId);
+        }
+      }
+    } catch (e) {
+      print('❌ Firestore READ error: $e');
+    }
+
+    print('=======================================');
+    print('📁 folderId: $folderId');
 
     if (folderId == null || folderId.trim().isEmpty) {
       if (context.mounted) {
@@ -295,9 +313,6 @@ class EventDiaryPage extends StatelessWidget {
       return;
     }
 
-    // ------------------------------------------------------
-    // 1.  Συγκέντρωσε τα events
-    // ------------------------------------------------------
     final snapshot =
         await _eventsRef()
             .orderBy('date')
@@ -326,9 +341,6 @@ class EventDiaryPage extends StatelessWidget {
       return;
     }
 
-    // ------------------------------------------------------
-    // 2.  Κάνε POST στο Apps Script
-    // ------------------------------------------------------
     const webAppUrl =
         'https://script.google.com/macros/s/AKfycbwtiedIHA373jWgd5wcfgvbIYZYvhQsz8Lj4ha5uazRjOjoS5OjkW9jCeKvfERMD51H/exec';
 
@@ -351,7 +363,6 @@ class EventDiaryPage extends StatelessWidget {
           const SnackBar(content: Text('✅ Εξαγωγή ολοκληρώθηκε!')),
         );
 
-        // Προαιρετική καταγραφή
         await FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
