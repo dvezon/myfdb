@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'mywidgets.dart';
+import 'myfunctions.dart';
 
 // ---------------- Firestore  ----------------
 CollectionReference<Map<String, dynamic>> _eventsRef() {
@@ -264,66 +265,100 @@ class EventDiaryPage extends StatelessWidget {
     BuildContext context,
     DateTime firstDayOfYear,
   ) async {
-    const webAppUrl =
-        'https://script.google.com/macros/s/AKfycbxDji48s2N15OhSz_wvp_R0cZMVNoE0CjB9aWH53q-lqGN1PLjow5UPEKzfbnM3jOPOIA/exec';
-    //print('🔗 URL προς αποστολή: $webAppUrl');
-    try {
-      final snapshot =
-          await _eventsRef()
-              .orderBy('date')
-              .where(
-                'date',
-                isGreaterThanOrEqualTo: Timestamp.fromDate(firstDayOfYear),
-              )
-              .get();
+    // ------------------------------------------------------
+    // 0.  Βρες UID και folderId του χρήστη
+    // ------------------------------------------------------
+    final uid = driveFolderIdFromUrl(FirebaseAuth.instance.currentUser!.uid);
 
-      final data =
-          snapshot.docs.map((doc) {
-            final dt = (doc['date'] as Timestamp).toDate();
-            final ev = doc['event'] ?? '';
-            return {
-              'date':
-                  '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}',
-              'event': ev,
-            };
-          }).toList();
+    // Ρύθμισε εδώ το ακριβές path & key που χρησιμοποιείς
+    const googleFolderKey = 'googleFolderId'; // πεδίο στο settings
+    final settingsSnap =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('settings')
+            .doc('app')
+            .get();
 
-      if (data.isEmpty) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❗Δεν υπάρχουν δεδομένα προς εξαγωγή'),
+    final folderId = settingsSnap.data()?[googleFolderKey] as String?;
+
+    if (folderId == null || folderId.trim().isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '❗ Δεν έχει οριστεί φάκελος Drive. Ρύθμισέ τον πρώτα.',
             ),
-          );
-        }
-        return;
+          ),
+        );
       }
+      return;
+    }
 
+    // ------------------------------------------------------
+    // 1.  Συγκέντρωσε τα events
+    // ------------------------------------------------------
+    final snapshot =
+        await _eventsRef()
+            .orderBy('date')
+            .where(
+              'date',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(firstDayOfYear),
+            )
+            .get();
+
+    final records =
+        snapshot.docs.map((doc) {
+          final dt = (doc['date'] as Timestamp).toDate();
+          return {
+            'date':
+                '${dt.day.toString().padLeft(2, "0")}/${dt.month.toString().padLeft(2, "0")}/${dt.year}',
+            'event': doc['event'] ?? '',
+          };
+        }).toList();
+
+    if (records.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❗ Δεν υπάρχουν δεδομένα προς εξαγωγή')),
+        );
+      }
+      return;
+    }
+
+    // ------------------------------------------------------
+    // 2.  Κάνε POST στο Apps Script
+    // ------------------------------------------------------
+    const webAppUrl =
+        'https://script.google.com/macros/s/AKfycbwtiedIHA373jWgd5wcfgvbIYZYvhQsz8Lj4ha5uazRjOjoS5OjkW9jCeKvfERMD51H/exec';
+
+    try {
       final res = await http.post(
         Uri.parse(webAppUrl),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'records': data}),
+        body: jsonEncode({
+          'uid': uid,
+          'folderId': folderId,
+          'records': records,
+        }),
       );
 
       if (!context.mounted) return;
       final messenger = ScaffoldMessenger.of(context);
 
-      // Ανίχνευση επιτυχίας
-      if ((res.statusCode == 200 || res.statusCode == 302) &&
-          res.body.trim().isNotEmpty) {
+      if (res.statusCode == 200 && res.body.trim().isNotEmpty) {
         messenger.showSnackBar(
           const SnackBar(content: Text('✅ Εξαγωγή ολοκληρώθηκε!')),
         );
 
-        // Προαιρετική καταγραφή στο Firestore
+        // Προαιρετική καταγραφή
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(FirebaseAuth.instance.currentUser!.uid)
+            .doc(uid)
             .collection('exports')
             .add({'timestamp': FieldValue.serverTimestamp()});
       } else {
-        // Αν πάρουμε HTML ή redirect, εμφάνισε κατάλληλο σφάλμα
-        throw Exception('Σφάλμα από server: ${res.statusCode}\n${res.body}');
+        throw Exception('Server error ${res.statusCode}: ${res.body}');
       }
     } catch (e) {
       if (context.mounted) {

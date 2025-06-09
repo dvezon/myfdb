@@ -46,3 +46,46 @@ class BorderedBox extends StatelessWidget {
     );
   }
 }
+
+class MyTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final ColorScheme cs;
+  final void Function(String)? onChanged; //  προαιρετικό
+
+  const MyTextField({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.cs,
+    this.onChanged, //  δεν είναι required
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged, //  περνάμε το callback, αν υπάρχει
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: cs.primary),
+          border: OutlineInputBorder(
+            borderSide: BorderSide(color: cs.outlineVariant),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: cs.primary, width: 2),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: cs.outlineVariant),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+        ),
+      ),
+    );
+  }
+}

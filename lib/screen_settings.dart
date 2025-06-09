@@ -10,7 +10,6 @@ import 'mywidgets.dart';
 ///  * Αποθηκεύει / διαβάζει ρυθμίσεις σε Cloud Firestore **per‑user**.
 ///  * Παρέχει κουμπί «Επαναφορά» που επαναφέρει όλες τις τιμές στα
 ///    προεπιλεγμένα και τις ξαναγράφει στο Firestore.
-///  * SnackBars & context‑safety via helper.
 /// -----------------------------------------------------------------
 class EditFieldsScreen extends StatefulWidget {
   const EditFieldsScreen({super.key});
@@ -39,6 +38,8 @@ class _EditFieldsScreenState extends State<EditFieldsScreen> {
     'kladosSig',
   ];
 
+  static const String _googleFolderKey = 'googleFolder';
+
   // Αρχικές τιμές (defaults)
   static const List<String> _defaults = [
     'ΠΑΙΔΕΙΑΣ',
@@ -59,47 +60,68 @@ class _EditFieldsScreenState extends State<EditFieldsScreen> {
   ];
 
   late final List<TextEditingController> _controllers;
-  late DocumentReference<Map<String, dynamic>> _docRef;
+  late final TextEditingController googleFolder;
+
   bool _busy = false;
 
   // ------------  Init  ------------
   @override
   void initState() {
     super.initState();
+
     _controllers = _defaults
         .map((d) => TextEditingController(text: d))
         .toList(growable: false);
+
+    googleFolder = TextEditingController();
+
     _initialise();
   }
 
-  // Helper για ασφαλή SnackBars
   void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  // -----------------------------------------------------------
+  // 1. INIT – ορισμός σωστού _docRef και φόρτωση ρυθμίσεων
+  // -----------------------------------------------------------
+  late DocumentReference<Map<String, dynamic>> _docRef;
+
   Future<void> _initialise() async {
+    WidgetsFlutterBinding.ensureInitialized();
     await Firebase.initializeApp();
-    final user = auth.FirebaseAuth.instance.currentUser;
-    final docId = user?.uid ?? 'global';
-    _docRef = FirebaseFirestore.instance.collection('settings').doc(docId);
+
+    final uid = auth.FirebaseAuth.instance.currentUser?.uid;
+    // ➜ Για ανώνυμο χρήστη γράφουμε κάτω από /settings/global/app
+    final base =
+        uid == null
+            ? FirebaseFirestore.instance.collection('settings').doc('global')
+            : FirebaseFirestore.instance.collection('users').doc(uid);
+
+    _docRef = base.collection('settings').doc('app');
 
     await _readFromFirestore();
     if (mounted) setState(() {});
   }
 
-  // ------------  Firestore   ------------
+  // -----------------------------------------------------------
+  // 2. READ – φόρτωση πεδίων στους controllers
+  // -----------------------------------------------------------
   Future<void> _readFromFirestore() async {
     try {
       final snap = await _docRef.get();
       if (snap.exists) {
-        final data = snap.data()!;
+        final data = snap.data() ?? {};
+
+        // generic πεδία
         for (var i = 0; i < _controllers.length; i++) {
           final val = data[_keys[i]];
-          if (val is String && val.isNotEmpty) {
-            _controllers[i].text = val;
-          }
+          if (val is String) _controllers[i].text = val;
         }
+
+        // googleFolder
+        googleFolder.text = (data[_googleFolderKey] ?? '') as String;
       } else {
         await _writeToFirestore(); // πρώτη φορά → γράψε defaults
       }
@@ -108,20 +130,55 @@ class _EditFieldsScreenState extends State<EditFieldsScreen> {
     }
   }
 
+  // -----------------------------------------------------------
+  // 3. WRITE – αποθήκευση (merge) όλων των πεδίων
+  // -----------------------------------------------------------
   Future<void> _writeToFirestore() async {
-    final map = Map<String, String>.fromIterables(
-      _keys,
-      _controllers.map((c) => c.text),
-    );
-    await _docRef.set(map);
+    try {
+      final map = {
+        for (var i = 0; i < _keys.length; i++) _keys[i]: _controllers[i].text,
+        _googleFolderKey: googleFolder.text,
+      };
+
+      await _docRef.set(map, SetOptions(merge: true));
+    } catch (e) {
+      _showSnack('Σφάλμα αποθήκευσης ρυθμίσεων: $e');
+    }
   }
 
-  // ------------  Reset to defaults  ------------
+  // ------------  Reset  ------------
   Future<void> _resetToDefaults() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Επαναφορά ρυθμίσεων'),
+            content: const Text(
+              'Θέλεις να διαγραφεί και ο κοινόχρηστος φάκελος του Drive;',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Όχι'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Ναι'),
+              ),
+            ],
+          ),
+    );
+
     setState(() => _busy = true);
+
     for (var i = 0; i < _controllers.length; i++) {
       _controllers[i].text = _defaults[i];
     }
+
+    if (confirm == true) {
+      googleFolder.text = '';
+    }
+
     await _writeToFirestore();
     if (mounted) setState(() => _busy = false);
     _showSnack('Οι αρχικές τιμές επαναφέρθηκαν.');
@@ -133,6 +190,7 @@ class _EditFieldsScreenState extends State<EditFieldsScreen> {
     for (final c in _controllers) {
       c.dispose();
     }
+    googleFolder.dispose();
     super.dispose();
   }
 
@@ -140,15 +198,13 @@ class _EditFieldsScreenState extends State<EditFieldsScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Ρυθμίσεις Εγγράφου')),
-      body: //Padding(
-      //padding: const EdgeInsets.all(16),
-      Column(
+      body: Column(
         children: [
-          // --- πεδία -----------------------
           Flexible(
-            flex: 9,
+            flex: 7,
             child: BorderedBox(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(top: 8),
@@ -156,7 +212,16 @@ class _EditFieldsScreenState extends State<EditFieldsScreen> {
               ),
             ),
           ),
-          // --- κουμπιά ---------------------
+          Flexible(
+            flex: 2,
+            child: BorderedBox(
+              child: MyTextField(
+                controller: googleFolder,
+                label: "Drive Κοινόχρηστος Φάκελλος",
+                cs: cs,
+              ),
+            ),
+          ),
           Flexible(
             flex: 1,
             child: Center(
@@ -204,25 +269,10 @@ class _EditFieldsScreenState extends State<EditFieldsScreen> {
     return List.generate(labels.length, (i) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: TextField(
+        child: MyTextField(
           controller: _controllers[i],
-          decoration: InputDecoration(
-            labelText: labels[i],
-            labelStyle: TextStyle(color: cs.primary),
-            border: OutlineInputBorder(
-              borderSide: BorderSide(color: cs.outlineVariant),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: cs.primary, width: 2),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: cs.outlineVariant),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-          ),
+          label: labels[i],
+          cs: cs,
         ),
       );
     });

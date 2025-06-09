@@ -75,48 +75,6 @@ class MainMenu extends StatelessWidget {
   }
 }
 
-/*Column(
-      children: [
-        Flexible(
-          flex: 6,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              const double vPad = 8; // κάθετο padding ListView
-              const double spacing = 12; // SizedBox ανάμεσα
-              const double totalPadding = vPad * 2;
-              final double totalSpacing = spacing * (entries.length - 1);
-              final double itemHeight =
-                  (constraints.maxHeight - totalPadding - totalSpacing) /
-                  entries.length;
-
-              return BorderedBox(
-                child: ListView.separated(
-                  physics: const NeverScrollableScrollPhysics(), // προαιρετικά
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: vPad,
-                  ),
-                  itemCount: entries.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: spacing),
-                  itemBuilder:
-                      (_, index) => SizedBox(
-                        height: itemHeight,
-                        child: _MenuCard(entry: entries[index]),
-                      ),
-                ),
-              );
-            },
-          ),
-        ),
-        const Flexible(
-          flex: 4,
-          child: BorderedBox(child: Center(child: Text('Διπλωματική'))),
-        ),
-      ],
-    );
-  }
-}*/
-
 /// Εσωτερικό μοντέλο για κάθε επιλογή μενού
 class _MenuEntry {
   final String title;
