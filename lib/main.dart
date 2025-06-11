@@ -28,6 +28,7 @@ final googleProvider = GoogleProvider(
 
 // ---------------- Global UID -------------
 String? globalUid;
+String? devUid;
 
 // ---------------- Firestore helper ----------
 Future<void> _saveUserToFirestore(auth.User user) async {
@@ -51,7 +52,7 @@ Future<void> main() async {
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
-
+  devUid = 'oRP8yo3mJcPF03N5kAWfgEwZaj03';
   runApp(const MyApp());
 }
 

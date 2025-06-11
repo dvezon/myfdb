@@ -101,7 +101,12 @@ class _MenuCard extends StatelessWidget {
               entry.title,
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w500,
+                //fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.lerp(
+                  FontWeight.w500,
+                  FontWeight.w600,
+                  0.5,
+                ),
                 color: Theme.of(context).colorScheme.primary,
               ),
               textAlign: TextAlign.center,

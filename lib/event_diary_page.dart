@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'mywidgets.dart';
 import 'myfunctions.dart';
 import 'main.dart' show globalUid;
+import 'main.dart' show devUid;
 
 // ---------------- Firestore  ----------------
 CollectionReference<Map<String, dynamic>> _eventsRef() {
@@ -86,22 +87,21 @@ class EventDiaryPage extends StatelessWidget {
                 final dt = (data['date'] as Timestamp).toDate();
 
                 return ListTile(
-                  leading: Text(
+                  //leading: const Icon(Icons.event),
+                  title: Text(
                     '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  title: Text(data['event'] ?? '—'),
+                  subtitle: Text(data['event'] ?? '—'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: const Icon(Icons.edit, size: 20),
-                        tooltip: 'Επεξεργασία',
                         onPressed: () => _showEditDialog(context, doc: doc),
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete_forever_sharp, size: 20),
-                        tooltip: 'Διαγραφή',
                         onPressed: () => docs[i].reference.delete(),
                       ),
                     ],
@@ -256,7 +256,10 @@ class EventDiaryPage extends StatelessWidget {
     BuildContext context,
     DateTime firstDayOfYear,
   ) async {
+    //final uid = devUid;
     final uid = globalUid;
+
+    ;
 
     print('=========================================================');
     print('📌 Trying to read settings for UID: $uid');
@@ -282,11 +285,11 @@ class EventDiaryPage extends StatelessWidget {
       print('📦 folder = ${settingsSnap.data()}');
 
       final rawFolder = settingsSnap.data()?[googleFolderKey] as String?;
-      print('📦 11111 rawFolder = ${rawFolder} = ');
+      print('📦 11111 rawFolder = $rawFolder = ');
 
       if (settingsSnap.exists) {
         final rawFolder = settingsSnap.data()?[googleFolderKey] as String?;
-        print('📦 2222 rawFolder = ${rawFolder} = ');
+        print('📦 2222 rawFolder = $rawFolder = ');
 
         if (rawFolder != null) {
           folderId = driveFolderIdFromUrl(rawFolder);
@@ -342,15 +345,18 @@ class EventDiaryPage extends StatelessWidget {
     }
 
     const webAppUrl =
-        'https://script.google.com/macros/s/AKfycbwtiedIHA373jWgd5wcfgvbIYZYvhQsz8Lj4ha5uazRjOjoS5OjkW9jCeKvfERMD51H/exec';
+        //'https://script.google.com/macros/s/AKfycbwD1jdimh_WTUH567Mr6Y4RRFCU2IuCG35-Yjgfu-er4Ia6VQ4ikz_tW5WdXXZ6kHLU/exec';
+        //'https://us-central1-principals-app.cloudfunctions.net/proxyExport';
+        // 'https://proxyexport-mhdemkezbq-uc.a.run.app';
+        'https://proxyexport-mhdemkezbq-uc.a.run.app';
 
     try {
       final res = await http.post(
         Uri.parse(webAppUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'uid': uid,
-          'folderId': folderId,
+          'uid': globalUid,
+          'folderId': devUid,
           'records': records,
         }),
       );
@@ -365,7 +371,7 @@ class EventDiaryPage extends StatelessWidget {
 
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(uid)
+            .doc(uid) // ----------------- uid
             .collection('exports')
             .add({'timestamp': FieldValue.serverTimestamp()});
       } else {

@@ -64,13 +64,14 @@ class AppointmentsPage extends StatelessWidget {
                 final dt = (data['dateTime'] as Timestamp).toDate();
 
                 return ListTile(
-                  title: Text(data['title'] ?? '—'),
-                  subtitle: Text(
+                  title: Text(
                     '${dt.day}/${dt.month}/${dt.year}  '
                     '${dt.hour.toString().padLeft(2, "0")}:'
                     '${dt.minute.toString().padLeft(2, "0")}\n'
-                    '${data['notes'] ?? ''}',
+                    '${data['title'] ?? ''}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
+                  subtitle: Text('${data['notes'] ?? ''}'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -93,45 +94,6 @@ class AppointmentsPage extends StatelessWidget {
               },
             ),
           );
-
-          /*return ListView.separated(
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
-            itemBuilder: (context, i) {
-              final doc = docs[i];
-              final data = doc.data();
-              final dt = (data['dateTime'] as Timestamp).toDate();
-
-              return ListTile(
-                title: Text(data['title'] ?? '—'),
-                subtitle: Text(
-                  '${dt.day}/${dt.month}/${dt.year}  '
-                  '${dt.hour.toString().padLeft(2, "0")}:'
-                  '${dt.minute.toString().padLeft(2, "0")}\n'
-                  '${data['notes'] ?? ''}',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // ---------- EDIT ----------
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 20),
-                      tooltip: 'Επεξεργασία',
-                      onPressed:
-                          () => _showAppointmentDialog(context, doc: doc),
-                    ),
-                    // ---------- DELETE ----------
-                    IconButton(
-                      icon: const Icon(Icons.delete, size: 20),
-                      tooltip: 'Διαγραφή',
-                      onPressed: () => doc.reference.delete(),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-          */
         },
       ),
       floatingActionButton: FloatingActionButton(
