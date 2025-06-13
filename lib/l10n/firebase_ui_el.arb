@@ -1,0 +1,133 @@
+{
+  "@@locale": "el",
+
+  "signInText": "Σύνδεση",
+  "@signInText": {
+    "description": "Label for the primary Sign‑in button"
+  },
+
+  "signInTooltip": "Σύνδεση",
+  "@signInTooltip": {
+    "description": "Tooltip text for Sign‑in action"
+  },
+
+  "registerText": "Εγγραφή",
+  "@registerText": {
+    "description": "Label for the Register / Create‑account button"
+  },
+
+  "registerTooltip": "Εγγραφή",
+  "@registerTooltip": {
+    "description": "Tooltip text for Register action"
+  },
+
+  "continueLabel": "Συνέχεια",
+  "@continueLabel": {
+    "description": "Generic Continue button label"
+  },
+
+  "signInWithGoogleButtonLabel": "Σύνδεση με Google",
+  "@signInWithGoogleButtonLabel": {
+    "description": "Label for Sign‑in with Google button"
+  },
+
+  "signInWithAppleButtonLabel": "Σύνδεση με Apple",
+  "@signInWithAppleButtonLabel": {
+    "description": "Label for Sign‑in with Apple button"
+  },
+
+  "signInWithFacebookButtonLabel": "Σύνδεση με Facebook",
+  "@signInWithFacebookButtonLabel": {
+    "description": "Label for Sign‑in with Facebook button"
+  },
+
+  "emailInputLabel": "Email",
+  "@emailInputLabel": {
+    "description": "Label for email TextField"
+  },
+
+  "passwordInputLabel": "Κωδικός πρόσβασης",
+  "@passwordInputLabel": {
+    "description": "Label for password TextField"
+  },
+
+  "confirmPasswordInputLabel": "Επιβεβαίωση κωδικού",
+  "@confirmPasswordInputLabel": {
+    "description": "Label for confirm‑password TextField"
+  },
+
+  "forgotPasswordButtonLabel": "Ξεχάσατε τον κωδικό;",
+  "@forgotPasswordButtonLabel": {
+    "description": "Forgot‑password action link"
+  },
+
+  "okButtonLabel": "OK",
+  "@okButtonLabel": {
+    "description": "Generic OK button label"
+  },
+
+  "cancelButtonLabel": "Ακύρωση",
+  "@cancelButtonLabel": {
+    "description": "Generic Cancel button label"
+  },
+
+  "backButtonLabel": "Πίσω",
+  "@backButtonLabel": {
+    "description": "Generic Back button label"
+  },
+
+  "errorOccurredText": "Παρουσιάστηκε σφάλμα",
+  "@errorOccurredText": {
+    "description": "Generic error message"
+  },
+
+  "passwordResetEmailSentText": "Στάλθηκε email επαναφοράς κωδικού",
+  "@passwordResetEmailSentText": {
+    "description": "Toast/snackbar message after sending a password‑reset email"
+  },
+
+  "verifyEmailTitle": "Επαλήθευση email",
+  "@verifyEmailTitle": {
+    "description": "Title for the email verification screen"
+  },
+
+  "verifyEmailText": "Ελέγξτε το email σας και ακολουθήστε τον σύνδεσμο επαλήθευσης για να συνεχίσετε.",
+  "@verifyEmailText": {
+    "description": "Body text for the email verification screen"
+  },
+
+  "verificationSuccessfulText": "Η επαλήθευση ήταν επιτυχής",
+  "@verificationSuccessfulText": {
+    "description": "Displayed when email verification succeeds"
+  },
+
+  "verificationFailedText": "Η επαλήθευση απέτυχε",
+  "@verificationFailedText": {
+    "description": "Displayed when email verification fails"
+  },
+
+  "phoneInputLabel": "Αριθμός τηλεφώνου",
+  "@phoneInputLabel": {
+    "description": "Label for phone number TextField"
+  },
+
+  "smsCodeInputLabel": "Κωδικός SMS",
+  "@smsCodeInputLabel": {
+    "description": "Label for SMS verification‑code TextField"
+  },
+
+  "resendCodeLabel": "Επαναποστολή κωδικού",
+  "@resendCodeLabel": {
+    "description": "Link/button to resend SMS verification code"
+  },
+
+  "termsOfServiceLabel": "Όροι χρήσης",
+  "@termsOfServiceLabel": {
+    "description": "Label for Terms of Service link"
+  },
+
+  "privacyPolicyLabel": "Πολιτική απορρήτου",
+  "@privacyPolicyLabel": {
+    "description": "Label for Privacy Policy link"
+  }
+}

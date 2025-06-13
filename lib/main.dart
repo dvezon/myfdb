@@ -18,6 +18,7 @@ import 'appointments_page.dart';
 import 'event_diary_page.dart';
 import 'screen_settings.dart';
 import 'greek_localizations.dart';
+import 'create_doc.dart';
 
 // ---------------- Auth providers -------------
 final emailAuthProvider = EmailAuthProvider();
@@ -70,12 +71,12 @@ class MyApp extends StatelessWidget {
 
       locale: const Locale('el'),
       supportedLocales: const [Locale('el'), Locale('en')],
-      localizationsDelegates: [
+      localizationsDelegates: const [
         FirebaseUILocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
-        const GreekLocalizationsDelegate(),
+        GreekLocalizationsDelegate(),
       ],
 
       theme: ThemeData(
@@ -114,11 +115,11 @@ class MyApp extends StatelessWidget {
           );
         },
       ),
+
       routes: {
         '/appointments': (_) => const AppointmentsPage(),
         '/leaves': (_) => const PlaceholderScreen(title: 'Διαχείριση Αδειών'),
-        '/createdoc':
-            (_) => const PlaceholderScreen(title: 'Δημιουργία Εγγράφου'),
+        '/createdoc': (_) => const CreateDocPage(),
         '/logbook': (_) => const EventDiaryPage(year: 2025),
         '/settings': (_) => const EditFieldsScreen(),
       },
