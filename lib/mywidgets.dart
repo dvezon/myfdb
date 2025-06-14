@@ -89,3 +89,96 @@ class MyTextField extends StatelessWidget {
     );
   }
 }
+
+class AppsDiscriptionHead extends StatelessWidget {
+  const AppsDiscriptionHead({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final myColor = Theme.of(context).colorScheme.primary;
+    double myFondSize = 14;
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Εφαρμογή:\n',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: myColor,
+              fontSize: myFondSize,
+            ),
+          ),
+          Text(
+            'Οργάνωσης και Υποστήριξης',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: myColor,
+              fontSize: myFondSize,
+            ),
+          ),
+          Text(
+            'της Διοίκησης Σχολικής Μονάδας',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: myColor,
+              fontSize: myFondSize,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AppsDiscriptionTail extends StatelessWidget {
+  const AppsDiscriptionTail({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final myColor = Theme.of(context).colorScheme.primary;
+    double myFondSize = 14;
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'του μεταταπτυχιακού φοιτητή',
+            style: TextStyle(
+              // fontWeight: FontWeight.bold,
+              color: myColor,
+              fontSize: myFondSize,
+            ),
+          ),
+          Text(
+            'Βεζονιαράκη Δημήτρη',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: myColor,
+              fontSize: myFondSize,
+            ),
+          ),
+          Text(
+            'Επιβλέπον Καθηγητής',
+
+            style: TextStyle(
+              //fontWeight: FontWeight.bold,
+              color: myColor,
+              fontSize: myFondSize,
+            ),
+          ),
+          Text(
+            'Τσιλίκας Νικόλαος',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: myColor,
+              fontSize: myFondSize,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -1,4 +1,3 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -9,7 +8,6 @@ import 'package:firebase_auth/firebase_auth.dart'
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
-import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
 import 'package:firebase_ui_localizations/firebase_ui_localizations.dart';
 
 import 'firebase_options.dart';
@@ -19,13 +17,10 @@ import 'event_diary_page.dart';
 import 'screen_settings.dart';
 import 'greek_localizations.dart';
 import 'create_doc.dart';
+import 'mywidgets.dart';
 
 // ---------------- Auth providers -------------
 final emailAuthProvider = EmailAuthProvider();
-final googleProvider = GoogleProvider(
-  clientId:
-      '697374211054-83abftc39o0mtdi30bpc6fq4qst3unj5.apps.googleusercontent.com',
-);
 
 // ---------------- Global UID -------------
 String? globalUid;
@@ -98,27 +93,49 @@ class MyApp extends StatelessWidget {
             return const HomeScreen();
           }
 
-          return SignInScreen(
-            providers: [emailAuthProvider, googleProvider],
-            actions: [
-              AuthStateChangeAction<SignedIn>((context, state) async {
-                final user = auth.FirebaseAuth.instance.currentUser;
-                if (user != null) await _saveUserToFirestore(user);
-                if (context.mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  );
-                }
-              }),
-            ],
+          return Scaffold(
+            backgroundColor: const Color(0xFFE8F5E9),
+            body: Stack(
+              children: [
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 100.0),
+                    child: SignInScreen(
+                      headerBuilder: (context, constraints, _) {
+                        return const AppsDiscriptionHead();
+                      },
+                      providers: [emailAuthProvider],
+                      actions: [
+                        AuthStateChangeAction<SignedIn>((context, state) async {
+                          final user = auth.FirebaseAuth.instance.currentUser;
+                          if (user != null) await _saveUserToFirestore(user);
+                          if (context.mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const HomeScreen(),
+                              ),
+                            );
+                          }
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+                const Positioned(
+                  bottom: 16,
+                  left: 0,
+                  right: 0,
+                  child: Center(child: AppsDiscriptionTail()),
+                ),
+              ],
+            ),
           );
         },
       ),
 
       routes: {
         '/appointments': (_) => const AppointmentsPage(),
-        '/leaves': (_) => const PlaceholderScreen(title: 'Διαχείριση Αδειών'),
         '/createdoc': (_) => const TemplateDropdownPage(),
         '/logbook': (_) => const EventDiaryPage(year: 2025),
         '/settings': (_) => const EditFieldsScreen(),

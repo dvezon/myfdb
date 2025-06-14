@@ -15,7 +15,7 @@ class MainMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = <_MenuEntry>[
       const _MenuEntry('Διαχείριση Ραντεβού', routeAppointments),
-      const _MenuEntry('Διαχείριση Αδειών', routeLeaves),
+      //     const _MenuEntry('Διαχείριση Αδειών', routeLeaves),
       const _MenuEntry('Δημιουργία Εγγράφου', routeCreateDoc),
       const _MenuEntry('Καταγραφή Ημερολογίου Συμβάντων', routeLogBook),
       const _MenuEntry('Ρυθμίσεις', routeSettings),
@@ -68,7 +68,38 @@ class MainMenu extends StatelessWidget {
         // ─────────────────── ΚΑΤΩ BorderedBox ───────────────────
         const Flexible(
           flex: 4,
-          child: BorderedBox(child: Center(child: Text('Διπλωματική'))),
+          child: BorderedBox(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Διπλωματική Εργάσια με θέμα:\n'),
+                  Text(
+                    'Σχεδίαση και Ανάπτυξη Εφαρμογής Κινητού',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'για την Οργάνωση και Υποστήριξη',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'της Διοίκησης Σχολικής Μονάδας\n\n\n\n',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('του μεταταπτυχιακού φοιτητή'),
+                  Text(
+                    'Βεζονιαράκη Δημήτρη\n',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('Επιβλέπον Καθηγητής'),
+                  Text(
+                    'Τσιλίκας Νικόλαος',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );

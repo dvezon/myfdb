@@ -25,6 +25,8 @@ dependencies:
   # Google REST APIs & auth helpers
   googleapis: ^13.1.0          # Docs / Drive live here
   googleapis_auth: ^1.4.1      # authenticatedClient helper
+  url_launcher: ^6.2.5
+
      
 
 
