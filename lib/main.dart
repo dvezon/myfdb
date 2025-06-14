@@ -119,7 +119,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/appointments': (_) => const AppointmentsPage(),
         '/leaves': (_) => const PlaceholderScreen(title: 'Διαχείριση Αδειών'),
-        '/createdoc': (_) => const CreateDocPage(),
+        '/createdoc': (_) => const TemplateDropdownPage(),
         '/logbook': (_) => const EventDiaryPage(year: 2025),
         '/settings': (_) => const EditFieldsScreen(),
       },
