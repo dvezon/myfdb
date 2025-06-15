@@ -1,45 +1,42 @@
 // lib/ui/template_dropdown_page.dart
+// UI layer – uses Riverpod & DriveService (no provider writes inside build)
+// -----------------------------------------------------------------------------
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+//import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-//import 'package:firebase_auth/firebase_auth.dart';
+//import 'mylib/drive_service.dart';
+import 'mylib/mywidgets.dart';
+import 'mylib/providers.dart';
 
-import 'mylib/providers.dart'; // scriptUrl, driveServiceProvider, κ.λπ.
-import 'mylib/mywidgets.dart'; // BorderedBox ή ό,τι άλλο έχεις
-
+// ──────────────────────────────────────────────────────────────
+// page
+// ──────────────────────────────────────────────────────────────
 class TemplateDropdownPage extends ConsumerStatefulWidget {
   const TemplateDropdownPage({super.key});
-
   @override
   ConsumerState<TemplateDropdownPage> createState() =>
       _TemplateDropdownPageState();
 }
 
 class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
-  // ─────────────────────────── FORM CONTROLLERS & UI FLAGS ────────────────
+  // ---------- controllers ----------
   final _filenameCtrl = TextEditingController();
   final _protocolCtrl = TextEditingController();
   final _subjectCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
   DateTime? _selectedDate;
 
+  // ---------- UI flags ----------
+  bool _showForm = false;
   bool _viewMode = false;
-  bool _saving = false;
   bool _editing = false;
+  bool _saving = false;
   String? _editingDocId;
 
-  @override
-  void dispose() {
-    _filenameCtrl.dispose();
-    _protocolCtrl.dispose();
-    _subjectCtrl.dispose();
-    _contentCtrl.dispose();
-    super.dispose();
-  }
-
-  // ─────────────────────────── HELPERS ────────────────────────────────────
-  void _showSnack(String msg) =>
+  // ---------- helpers ----------
+  void _snack(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   void _populateForm(Map<String, dynamic> d) {
@@ -60,22 +57,82 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
 
   Future<void> _pickDate() async {
     if (_viewMode) return;
-    final date = await showDatePicker(
+    final d = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(DateTime.now().year - 5),
       lastDate: DateTime(DateTime.now().year + 1),
     );
-    if (date != null) setState(() => _selectedDate = date);
+    if (d != null) setState(() => _selectedDate = d);
   }
 
-  // ─────────────────────────── EXPORT DOC ─────────────────────────────────
+  // ---------- save / delete ----------
+  Future<void> _saveDoc() async {
+    if (_viewMode) return;
+    final uid = ref.read(authUidProvider);
+    final templateId = ref.read(selectedTemplateIdProvider);
+    if (uid == null || templateId == null) return;
+
+    final empty = [
+      _filenameCtrl,
+      _protocolCtrl,
+      _subjectCtrl,
+      _contentCtrl,
+    ].any((c) => c.text.trim().isEmpty);
+    if (empty || _selectedDate == null) {
+      _snack('❗ Συμπλήρωσε όλα τα πεδία');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final data = {
+        'templateId': templateId,
+        'filename': _filenameCtrl.text.trim(),
+        'protocol': _protocolCtrl.text.trim(),
+        'subject': _subjectCtrl.text.trim(),
+        'content': _contentCtrl.text.trim(),
+        'date': Timestamp.fromDate(_selectedDate!),
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+      final col = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('mydocs');
+
+      _editing
+          ? await col.doc(_editingDocId).update(data)
+          : await col.add(data);
+
+      _snack('✅ Αποθηκεύτηκε');
+      setState(() => _showForm = false);
+    } catch (e) {
+      _snack('Σφάλμα αποθήκευσης: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+      _editing = false;
+      _editingDocId = null;
+    }
+  }
+
+  Future<void> _deleteDoc(String docId) async {
+    final uid = ref.read(authUidProvider);
+    if (uid == null) return;
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('mydocs')
+        .doc(docId)
+        .delete();
+  }
+
+  // ---------- export ----------
   Future<void> _exportDoc(Map<String, dynamic> docData) async {
     final uid = ref.read(authUidProvider);
     final templateId = ref.read(selectedTemplateIdProvider);
     if (uid == null || templateId == null) return;
 
-    _showSnack('Εξαγωγή…');
+    _snack('Εξαγωγή…');
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -83,7 +140,6 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
     );
 
     try {
-      // settings χρήστη
       final settingsSnap =
           await FirebaseFirestore.instance
               .collection('users')
@@ -92,79 +148,23 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
               .doc('app')
               .get();
 
-      // DriveService μέσω provider
-      final svc = ref.read(driveServiceProvider);
-      await svc.exportDoc(
-        uid: uid,
-        templateId: templateId,
-        docData: docData,
-        userSettings: settingsSnap.data() ?? {},
-      );
-
-      if (!mounted) return;
-      _showSnack('✅ Εξαγωγή επιτυχής');
+      await ref
+          .read(driveServiceProvider)
+          .exportDoc(
+            uid: uid,
+            templateId: templateId,
+            docData: docData,
+            userSettings: settingsSnap.data() ?? {},
+          );
+      _snack('✅ Εξαγωγή επιτυχής');
     } catch (e) {
-      if (!mounted) return;
-      _showSnack('Σφάλμα εξαγωγής: $e');
+      _snack('Σφάλμα εξαγωγής: $e');
     } finally {
-      if (mounted) Navigator.of(context).pop(); // κλείσε spinner
+      Navigator.of(context).pop();
     }
   }
 
-  // ─────────────────────────── SAVE DOC DEMO (απλή έκδοση) ────────────────
-  Future<void> _saveDoc() async {
-    if (_viewMode) return;
-    final uid = ref.read(authUidProvider);
-    final templateId = ref.read(selectedTemplateIdProvider);
-    if (uid == null || templateId == null) return;
-
-    final filename = _filenameCtrl.text.trim();
-    final protocol = _protocolCtrl.text.trim();
-    final subject = _subjectCtrl.text.trim();
-    final content = _contentCtrl.text.trim();
-    final date = _selectedDate;
-
-    if ([filename, protocol, subject, content].any((v) => v.isEmpty) ||
-        date == null) {
-      _showSnack('❗ Συμπλήρωσε όλα τα πεδία');
-      return;
-    }
-
-    setState(() => _saving = true);
-    try {
-      final data = {
-        'templateId': templateId,
-        'filename': filename,
-        'protocol': protocol,
-        'subject': subject,
-        'content': content,
-        'date': Timestamp.fromDate(date),
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      final col = FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('mydocs');
-
-      if (_editing) {
-        await col.doc(_editingDocId).update(data);
-      } else {
-        await col.add(data);
-      }
-
-      _showSnack('✅ Αποθήκευση OK');
-      _clearForm();
-    } catch (e) {
-      _showSnack('Σφάλμα αποθήκευσης: $e');
-    } finally {
-      if (mounted) setState(() => _saving = false);
-      _editing = false;
-      _editingDocId = null;
-    }
-  }
-
-  // ─────────────────────────── BUILD ──────────────────────────────────────
+  // ---------- build ----------
   @override
   Widget build(BuildContext context) {
     final templatesAsync = ref.watch(templatesProvider);
@@ -176,15 +176,16 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           if (selectedTemplateId == null) {
-            _showSnack('Πρώτα επιλέξτε template');
+            _snack('Πρώτα επιλέξτε template');
             return;
           }
           setState(() {
+            _showForm = true;
             _viewMode = false;
             _editing = false;
             _editingDocId = null;
-            _clearForm();
           });
+          _clearForm();
         },
         child: const Icon(Icons.add),
       ),
@@ -193,29 +194,30 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ───────── DROP-DOWN (Templates) ─────────
+            // dropdown
             BorderedBox(
               child: templatesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Text('Σφάλμα: $e'),
                 data: (templates) {
-                  final currentId =
-                      selectedTemplateId ?? templates.first['fileId'];
-                  // αρχικοποίηση provider (μόνο την 1η φορά)
-                  ref.read(selectedTemplateIdProvider.notifier).state ??=
-                      currentId;
+                  final items =
+                      templates.where((t) {
+                        final id = t['fileId'];
+                        return id is String && id.isNotEmpty;
+                      }).toList();
 
                   return DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
                       labelText: 'Επιλέξτε τύπο εγγράφου',
                     ),
-                    value: currentId,
+                    value: selectedTemplateId,
+                    hint: const Text('—'),
                     items:
-                        templates
+                        items
                             .map(
-                              (t) => DropdownMenuItem(
-                                value: t['fileId'],
-                                child: Text(t['name']!),
+                              (t) => DropdownMenuItem<String>(
+                                value: t['fileId'] as String,
+                                child: Text(t['name'] ?? ''),
                               ),
                             )
                             .toList(),
@@ -228,87 +230,129 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
                 },
               ),
             ),
-            const SizedBox(height: 8),
-            // ───────── DOCS LIST ─────────
+            const SizedBox(height: 4),
+
             Expanded(
-              child:
-                  uid == null || selectedTemplateId == null
-                      ? const Center(child: Text('—'))
-                      : DocsList(
-                        uid: uid,
-                        templateId: selectedTemplateId,
-                        onExport: _exportDoc,
-                        onEdit: (data, id) {
-                          setState(() {
-                            _populateForm(data);
-                            _viewMode = false;
-                            _editing = true;
-                            _editingDocId = id;
-                          });
-                        },
-                        onView: (data) {
-                          setState(() {
-                            _populateForm(data);
-                            _viewMode = true;
-                          });
-                        },
-                      ),
-            ),
-            const SizedBox(height: 8),
-            // ───────── ΑΠΛΗ ΦΟΡΜΑ (demo) ─────────
-            BorderedBox(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
-                    controller: _filenameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Όνομα αρχείου',
-                    ),
-                    readOnly: _viewMode,
+                  // ----- docs list -----
+                  Expanded(
+                    child:
+                        (selectedTemplateId == null || uid == null)
+                            ? const Center(
+                              child: Text('Επιλέξτε τύπο εγγράφου'),
+                            )
+                            : FutureBuilder(
+                              future: ref
+                                  .read(driveServiceProvider)
+                                  .fetchDocs(
+                                    uid: uid,
+                                    templateId: selectedTemplateId,
+                                  ),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
+                                if (snapshot.hasError) {
+                                  return Text('Σφάλμα: ${snapshot.error}');
+                                }
+                                final docs =
+                                    snapshot.data
+                                        as List<
+                                          QueryDocumentSnapshot<
+                                            Map<String, dynamic>
+                                          >
+                                        >? ??
+                                    [];
+                                if (docs.isEmpty) {
+                                  return const Center(
+                                    child: Text('Δεν υπάρχουν αρχεία'),
+                                  );
+                                }
+                                return ListView.separated(
+                                  itemCount: docs.length,
+                                  separatorBuilder:
+                                      (_, __) => const Divider(height: 0),
+                                  itemBuilder: (ctx, i) {
+                                    final data = docs[i].data();
+                                    final id = docs[i].id;
+                                    final ts = data['date'] as Timestamp?;
+                                    final dateStr =
+                                        ts != null
+                                            ? DateFormat(
+                                              'dd/MM/yyyy HH:mm',
+                                            ).format(ts.toDate())
+                                            : '-';
+                                    return ListTile(
+                                      title: Text(data['subject'] ?? ''),
+                                      subtitle: Text(
+                                        dateStr,
+                                        style:
+                                            Theme.of(ctx).textTheme.bodySmall,
+                                      ),
+                                      onTap:
+                                          () => setState(() {
+                                            _populateForm(data);
+                                            _showForm = true;
+                                            _viewMode = true;
+                                          }),
+                                      trailing: Wrap(
+                                        spacing: 4,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              size: 20,
+                                            ),
+                                            tooltip: 'Επεξεργασία',
+                                            onPressed:
+                                                () => setState(() {
+                                                  _populateForm(data);
+                                                  _showForm = true;
+                                                  _viewMode = false;
+                                                  _editing = true;
+                                                  _editingDocId = id;
+                                                }),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.delete,
+                                              size: 20,
+                                            ),
+                                            tooltip: 'Διαγραφή',
+                                            onPressed: () => _deleteDoc(id),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.cloud_upload,
+                                              size: 20,
+                                            ),
+                                            tooltip: 'Εξαγωγή',
+                                            onPressed: () => _exportDoc(data),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
                   ),
-                  TextField(
-                    controller: _protocolCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Αρ. Πρωτοκόλλου',
-                    ),
-                    readOnly: _viewMode,
-                  ),
-                  TextField(
-                    controller: _subjectCtrl,
-                    decoration: const InputDecoration(labelText: 'Θέμα'),
-                    readOnly: _viewMode,
-                  ),
-                  TextField(
-                    controller: _contentCtrl,
-                    maxLines: 3,
-                    decoration: const InputDecoration(labelText: 'Περιεχόμενο'),
-                    readOnly: _viewMode,
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: _viewMode ? null : _pickDate,
-                    child: Text(
-                      _selectedDate == null
-                          ? 'Ημερομηνία'
-                          : DateFormat('dd/MM/yyyy').format(_selectedDate!),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (!_viewMode)
-                    ElevatedButton(
-                      onPressed: _saving ? null : _saveDoc,
+                  const SizedBox(height: 4),
+                  // ----- form / preview -----
+                  Expanded(
+                    child: BorderedBox(
                       child:
-                          _saving
-                              ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                              : Text(_editing ? 'Ενημέρωση' : 'Αποθήκευση'),
+                          _showForm
+                              ? _bottomBox()
+                              : const Center(
+                                child: Text('Επίλεξε αρχείο ή ➕ για νέο'),
+                              ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -317,68 +361,78 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
       ),
     );
   }
-}
 
-// ─────────────────────────── DocsList Widget ──────────────────────────────
-class DocsList extends ConsumerWidget {
-  const DocsList({
-    super.key,
-    required this.uid,
-    required this.templateId,
-    required this.onExport,
-    required this.onEdit,
-    required this.onView,
-  });
-
-  final String uid;
-  final String templateId;
-  final void Function(Map<String, dynamic>) onExport;
-  final void Function(Map<String, dynamic>, String id) onEdit;
-  final void Function(Map<String, dynamic>) onView;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final docsAsync = ref.watch(
-      FutureProvider.autoDispose((ref) {
-        final svc = ref.watch(driveServiceProvider);
-        return svc.fetchDocs(uid: uid, templateId: templateId);
-      }),
-    );
-
-    return docsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Text('Σφάλμα: $e'),
-      data:
-          (docs) => ListView.separated(
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
-            itemBuilder: (ctx, i) {
-              final data = docs[i].data();
-              final id = docs[i].id;
-              final ts = data['date'] as Timestamp;
-              return ListTile(
-                title: Text(data['subject'] ?? ''),
-                subtitle: Text(
-                  DateFormat('dd/MM/yyyy').format(ts.toDate()),
-                  style: Theme.of(ctx).textTheme.bodySmall,
-                ),
-                onTap: () => onView(data),
-                trailing: Wrap(
-                  spacing: 4,
+  // ---------- bottom form ----------
+  Widget _bottomBox() {
+    final ro = _viewMode;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _filenameCtrl,
+          decoration: const InputDecoration(labelText: 'Όνομα αρχείου'),
+          readOnly: ro,
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 18),
-                      onPressed: () => onEdit(data, id),
+                    Expanded(
+                      child: TextField(
+                        controller: _protocolCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Αρ. Πρωτοκόλλου',
+                        ),
+                        readOnly: ro,
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.cloud_upload, size: 18),
-                      onPressed: () => onExport(data),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: ro ? null : _pickDate,
+                        child: Text(
+                          _selectedDate == null
+                              ? 'Ημερομηνία'
+                              : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              );
-            },
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _subjectCtrl,
+                  decoration: const InputDecoration(labelText: 'Θέμα'),
+                  readOnly: ro,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _contentCtrl,
+                  maxLines: 6,
+                  decoration: const InputDecoration(labelText: 'Περιεχόμενο'),
+                  readOnly: ro,
+                ),
+              ],
+            ),
           ),
+        ),
+        const SizedBox(height: 8),
+        if (!ro)
+          ElevatedButton(
+            onPressed: _saving ? null : _saveDoc,
+            child:
+                _saving
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : Text(_editing ? 'Ενημέρωση' : 'Αποθήκευση'),
+          ),
+      ],
     );
   }
 }

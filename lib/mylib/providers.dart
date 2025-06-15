@@ -3,9 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'drive_service.dart';
 
 // config
-const scriptUrl = '…';
-const proxyExportUrl = '…';
-const defaultFolderId = '…';
+const scriptUrl =
+    'https://script.google.com/macros/s/AKfycbzNZv85DPuXnNgaM_4nS8sg5k9XT9gtSWC5LpK7H4uWUj3BYYc5G39Qzcq_PYtPsI-f/exec';
+const proxyExportUrl = 'https://proxyexport-mhdemkezbq-uc.a.run.app';
+const defaultFolderId = '1gQCEPMZ5y4PJX9NW73qQHMejfHN-FPcL';
 
 // DriveService singleton
 final driveServiceProvider = Provider<DriveService>((ref) {

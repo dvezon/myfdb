@@ -1,9 +1,11 @@
 // lib/services/drive_service.dart
+// Drive business‑logic separated from UI. Includes safe JSON fetch and guards
+// -----------------------------------------------------------------------------
 import 'dart:convert';
 //import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart'; // debugPrint
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,18 +17,18 @@ class DriveService {
     required this.defaultFolderId,
   });
 
-  // ───────────────────── config ─────────────────────
   final String scriptUrl;
   final String proxyExportUrl;
   final String defaultFolderId;
 
-  // ───────────────────── helper: GET + safe JSON ────
+  // ──────────────────────────────────────────────────────────────
+  // Helper: GET + safe JSON
+  // ──────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> _getJson(Uri uri) async {
     final res = await http.get(uri);
 
     if (res.statusCode != 200) {
-      throw 'HTTP ${res.statusCode}: '
-          '${res.body.substring(0, 120)}';
+      throw 'HTTP ${res.statusCode}: ${res.body.substring(0, 120)}';
     }
 
     final ct = res.headers['content-type'] ?? '';
@@ -40,7 +42,9 @@ class DriveService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // ───────────────────── templates ──────────────────
+  // ──────────────────────────────────────────────────────────────
+  // Templates
+  // ──────────────────────────────────────────────────────────────
   Future<List<Map<String, String>>> fetchTemplates() async {
     final decoded = await _getJson(
       Uri.parse('$scriptUrl?action=listTemplates'),
@@ -64,7 +68,9 @@ class DriveService {
       );
   }
 
-  // ───────────────────── docs list ───────────────────
+  // ──────────────────────────────────────────────────────────────
+  // Docs list
+  // ──────────────────────────────────────────────────────────────
   Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> fetchDocs({
     required String uid,
     required String templateId,
@@ -114,7 +120,9 @@ class DriveService {
     }
   }
 
-  // ───────────────────── export (Drive) ──────────────
+  // ──────────────────────────────────────────────────────────────
+  // Export
+  // ──────────────────────────────────────────────────────────────
   Future<void> exportDoc({
     required String uid,
     required String templateId,
@@ -125,11 +133,10 @@ class DriveService {
       throw 'templateId is empty – choose template first';
     }
 
-    // 1. placeholders του template
+    // 1. placeholders
     final keysJson = await _getJson(
       Uri.parse(
-        '$scriptUrl?action=listKeys&templateId='
-        '${Uri.encodeComponent(templateId)}',
+        '$scriptUrl?action=listKeys&templateId=${Uri.encodeComponent(templateId)}',
       ),
     );
     if (keysJson['ok'] != true) {
@@ -137,7 +144,7 @@ class DriveService {
     }
     final keys = List<String>.from(keysJson['keys']);
 
-    // 2. πεδία φόρμας
+    // 2. form fields
     final formFields = {
       'subject': docData['subject'],
       'title': docData['subject'],
@@ -147,7 +154,7 @@ class DriveService {
       ).format((docData['date'] as Timestamp).toDate()),
     };
 
-    // 3. build record μόνο με req keys
+    // 3. record
     final record = <String, dynamic>{};
     for (final k in keys) {
       if (formFields.containsKey(k)) {
@@ -159,12 +166,12 @@ class DriveService {
       }
     }
 
-    // 4. φάκελος
+    // 4. folder
     final folderId = _extractId(
       (userSettings['googleFolder'] as String?) ?? defaultFolderId,
     );
 
-    // 5. call proxy
+    // 5. proxy call
     final payload = {
       'uid': uid,
       'folderId': folderId,
@@ -186,7 +193,7 @@ class DriveService {
       throw decodedExport['message'] ?? 'export error';
     }
 
-    // 6. Άνοιγμα εγγράφου (προαιρετικό)
+    // 6. open doc
     final urlStr = decodedExport['url']?.toString();
     if (urlStr != null && urlStr.isNotEmpty) {
       final uri = Uri.parse(urlStr);
@@ -196,7 +203,9 @@ class DriveService {
     }
   }
 
-  // ───────────────────── helper: extract ID ──────────
+  // ──────────────────────────────────────────────────────────────
+  // Utils
+  // ──────────────────────────────────────────────────────────────
   String _extractId(String input) =>
       RegExp(r'[-\w]{25,}').firstMatch(input)?.group(0) ?? input;
 }
