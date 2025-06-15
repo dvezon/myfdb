@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'mywidgets.dart';
+import 'mylib/mywidgets.dart';
 
 /// // ---------------- Route names ----------------
 const String routeAppointments = '/appointments';

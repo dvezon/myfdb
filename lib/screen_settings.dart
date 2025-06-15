@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'main.dart' show globalUid; // ✅ παίρνουμε το UID από το main
-import 'mywidgets.dart';
+import 'mylib/mywidgets.dart';
 
 class EditFieldsScreen extends StatefulWidget {
   const EditFieldsScreen({super.key});

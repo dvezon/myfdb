@@ -16,7 +16,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 
 import 'main.dart' show globalUid; // ↩︎ πάρε το UID ενεργού χρήστη
-import 'mywidgets.dart'; // BorderedBox κ.λπ.
+import 'mylib/mywidgets.dart'; // BorderedBox κ.λπ.
 
 // ---------------------------  Config  ---------------------------
 const proxyUrl = 'https://proxyexport-mhdemkezbq-uc.a.run.app';

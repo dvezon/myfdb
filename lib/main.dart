@@ -10,14 +10,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:firebase_ui_localizations/firebase_ui_localizations.dart';
 
-import 'firebase_options.dart';
+import 'mylib/firebase_options.dart';
 import 'main_menu.dart';
 import 'appointments_page.dart';
 import 'event_diary_page.dart';
 import 'screen_settings.dart';
-import 'greek_localizations.dart';
+import 'mylib/greek_localizations.dart';
 import 'create_doc.dart';
-import 'mywidgets.dart';
+import 'mylib/mywidgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ---------------- Auth providers -------------
 final emailAuthProvider = EmailAuthProvider();
@@ -39,7 +40,7 @@ Future<void> _saveUserToFirestore(auth.User user) async {
   globalUid = user.uid;
 }
 
-Future<void> main() async {
+/*Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -50,6 +51,22 @@ Future<void> main() async {
   );
   devUid = 'oRP8yo3mJcPF03N5kAWfgEwZaj03';
   runApp(const MyApp());
+}
+*/
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
+
+  devUid = 'oRP8yo3mJcPF03N5kAWfgEwZaj03';
+
+  // ▼▼▼ ΕΔΩ: ProviderScope ψηλότερα απ' όλα ▼▼▼
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 // ====================================================

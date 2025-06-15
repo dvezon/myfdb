@@ -96,7 +96,7 @@ class AppsDiscriptionHead extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final myColor = Theme.of(context).colorScheme.primary;
-    double myFondSize = 14;
+    double myFondSize = 20;
 
     return Center(
       child: Column(
@@ -107,7 +107,7 @@ class AppsDiscriptionHead extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: myColor,
-              fontSize: myFondSize,
+              fontSize: 14, //myFondSize,
             ),
           ),
           Text(
