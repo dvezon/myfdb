@@ -32,3 +32,4 @@ final authUidProvider = Provider<String?>(
 
 // selected templateId
 final selectedTemplateIdProvider = StateProvider<String?>((_) => null);
+final selectedTemplateNameProvider = StateProvider<String?>((_) => null);

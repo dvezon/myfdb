@@ -2,13 +2,15 @@
 // Drive business‑logic separated from UI. Includes safe JSON fetch and guards
 // -----------------------------------------------------------------------------
 import 'dart:convert';
+import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
 //import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+//import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
+//import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
+//import 'package:url_launcher/url_launcher.dart';
 
 class DriveService {
   DriveService({
@@ -53,7 +55,6 @@ class DriveService {
     if (decoded['ok'] != true) {
       throw decoded['message'] ?? 'Unknown error';
     }
-
     final raw = decoded['templates'] as List<dynamic>;
     return raw
         .map<Map<String, String>>(
@@ -82,6 +83,7 @@ class DriveService {
             .collection('mydocs')
             .where('templateId', isEqualTo: templateId)
             .get();
+    // print('🔍 Fetching docs for uid: $uid, templateId: $templateId');
 
     final docs =
         snap.docs..sort((a, b) {
@@ -106,6 +108,7 @@ class DriveService {
   Future<void> saveDoc({
     required String uid,
     required Map<String, dynamic> data,
+    required String templateId,
     String? docId,
   }) async {
     final col = FirebaseFirestore.instance
@@ -113,11 +116,48 @@ class DriveService {
         .doc(uid)
         .collection('mydocs');
 
+    data['templateId'] = templateId;
+    // print('✅ Saving doc with data: $data');
     if (docId == null) {
       await col.add(data);
     } else {
       await col.doc(docId).update(data);
     }
+  }
+
+  /*dynamic makeJsonSafe(dynamic value) {
+    if (value is Timestamp) {
+      return DateFormat('dd/MM/yyyy HH:mm').format(value.toDate());
+    }
+    if (value is DateTime) {
+      return DateFormat('dd/MM/yyyy').format(value);
+    }
+
+    return value;
+  }
+*/
+
+  dynamic makeJsonSafe(dynamic value) {
+    if (value is Timestamp) {
+      final dt = value.toDate();
+      final hasTime = dt.hour != 0 || dt.minute != 0;
+      final format = hasTime ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy';
+      return DateFormat(format).format(dt);
+    }
+    if (value is DateTime) {
+      return DateFormat('dd/MM/yyyy').format(value);
+    }
+    if (value is TextEditingController) {
+      return value.text;
+    }
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k, makeJsonSafe(v)));
+    }
+    if (value is List) {
+      return value.map(makeJsonSafe).toList();
+    }
+
+    return value;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -144,26 +184,23 @@ class DriveService {
     }
     final keys = List<String>.from(keysJson['keys']);
 
-    // 2. form fields
-    final formFields = {
-      'subject': docData['subject'],
-      'title': docData['subject'],
-      'protocol': docData['protocol'],
-      'date': DateFormat(
-        'dd/MM/yyyy',
-      ).format((docData['date'] as Timestamp).toDate()),
-    };
+    // 2. form fields (raw copy)
+    final formFields = {...Map<String, dynamic>.from(docData)};
 
-    // 3. record
+    // 3. record — με ασφαλή μετατροπή τιμών
     final record = <String, dynamic>{};
     for (final k in keys) {
+      dynamic value;
+
       if (formFields.containsKey(k)) {
-        record[k] = formFields[k];
+        value = formFields[k];
       } else if (userSettings.containsKey(k)) {
-        record[k] = userSettings[k];
+        value = userSettings[k];
       } else {
-        record[k] = 'ΑΓΝΩΣΤΟ:$k';
+        value = 'ΑΓΝΩΣΤΟ:$k';
       }
+
+      record[k] = makeJsonSafe(value); // 🔁 ασφαλής μετατροπή
     }
 
     // 4. folder
@@ -193,14 +230,14 @@ class DriveService {
       throw decodedExport['message'] ?? 'export error';
     }
 
-    // 6. open doc
-    final urlStr = decodedExport['url']?.toString();
-    if (urlStr != null && urlStr.isNotEmpty) {
-      final uri = Uri.parse(urlStr);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+    /* Optional: Άνοιγμα του αρχείου
+  final urlStr = decodedExport['url']?.toString();
+  if (urlStr != null && urlStr.isNotEmpty) {
+    final uri = Uri.parse(urlStr);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  } */
   }
 
   // ──────────────────────────────────────────────────────────────

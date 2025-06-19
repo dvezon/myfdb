@@ -1,12 +1,7 @@
-// lib/ui/template_dropdown_page.dart
-// UI layer – uses Riverpod & DriveService (no provider writes inside build)
-// -----------------------------------------------------------------------------
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-//import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-//import 'mylib/drive_service.dart';
 import 'mylib/mywidgets.dart';
 import 'mylib/providers.dart';
 
@@ -24,9 +19,23 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
   // ---------- controllers ----------
   final _filenameCtrl = TextEditingController();
   final _protocolCtrl = TextEditingController();
+  final _receiversCtrl = TextEditingController();
   final _subjectCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
   DateTime? _selectedDate;
+
+  DateTime? _dateAitisis;
+
+  final _genArtCtrl = TextEditingController();
+  final _genEndiafCtrl = TextEditingController();
+  final _employCtrl = TextEditingController();
+
+  final _eidikotitaCtrl = TextEditingController();
+  final _numDaysCtrl = TextEditingController();
+  DateTime? _dateFromCtrl;
+  DateTime? _dateToCtrl;
+
+  //{{gen}} {{eployName}}{{eidikotita}} {{schoolNameGen}}{{numDays}} {{dateFrom}} {{dateTo}}.
 
   // ---------- UI flags ----------
   bool _showForm = false;
@@ -42,64 +51,207 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
   void _populateForm(Map<String, dynamic> d) {
     _filenameCtrl.text = d['filename'] ?? '';
     _protocolCtrl.text = d['protocol'] ?? '';
+    _receiversCtrl.text = d['receivers'] ?? '';
     _subjectCtrl.text = d['subject'] ?? '';
     _contentCtrl.text = d['content'] ?? '';
     _selectedDate = (d['date'] as Timestamp?)?.toDate();
+
+    _dateAitisis = (d['dateAitisis'] as Timestamp?)?.toDate();
+    _genEndiafCtrl.text = d['male-female-endiaf'] ?? '';
+
+    _genArtCtrl.text = d['genArt'] ?? '';
+    _employCtrl.text = d['eployName'] ?? '';
+    _eidikotitaCtrl.text = d['eidikotita'] ?? '';
+    _numDaysCtrl.text = d['numDays'] ?? '';
+    _dateFromCtrl = (d['dateFrom'] as Timestamp?)?.toDate();
+    _dateToCtrl = (d['dateTo'] as Timestamp?)?.toDate();
   }
 
   void _clearForm() {
     _filenameCtrl.clear();
     _protocolCtrl.clear();
+    _receiversCtrl.clear();
     _subjectCtrl.clear();
     _contentCtrl.clear();
     _selectedDate = null;
+
+    _dateAitisis = null;
+    _genArtCtrl.clear();
+    _genEndiafCtrl.clear();
+    _employCtrl.clear();
+
+    _eidikotitaCtrl.clear();
+    _numDaysCtrl.clear();
+    _dateFromCtrl = null;
+    _dateToCtrl = null;
   }
 
-  Future<void> _pickDate() async {
+  Future<void> _pickDateGeneric(
+    DateTime? current,
+    void Function(DateTime) set,
+  ) async {
     if (_viewMode) return;
     final d = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
+      initialDate: current ?? DateTime.now(),
       firstDate: DateTime(DateTime.now().year - 5),
       lastDate: DateTime(DateTime.now().year + 1),
     );
-    if (d != null) setState(() => _selectedDate = d);
+    if (d != null) setState(() => set(d));
   }
 
   // ---------- save / delete ----------
   Future<void> _saveDoc() async {
     if (_viewMode) return;
+
     final uid = ref.read(authUidProvider);
     final templateId = ref.read(selectedTemplateIdProvider);
     if (uid == null || templateId == null) return;
 
-    final empty = [
-      _filenameCtrl,
-      _protocolCtrl,
-      _subjectCtrl,
-      _contentCtrl,
-    ].any((c) => c.text.trim().isEmpty);
-    if (empty || _selectedDate == null) {
-      _snack('❗ Συμπλήρωσε όλα τα πεδία');
+    final missing = <String>[];
+    final templateName = ref.read(selectedTemplateNameProvider);
+
+    // Αυτόματη παραγωγή subject/filename αν λείπει
+    final employee = _employCtrl.text.trim();
+    final dateStr =
+        _selectedDate != null
+            ? DateFormat('dd/MM/yyyy').format(_selectedDate!)
+            : '';
+    final autoSubject = '$employee $templateName $dateStr';
+    if (_subjectCtrl.text.trim().isEmpty) _subjectCtrl.text = autoSubject;
+    if (_filenameCtrl.text.trim().isEmpty) _filenameCtrl.text = autoSubject;
+
+    // Έλεγχος πεδίων ανά template
+    switch (templateName) {
+      case 'Απλό Έγγραφο':
+        if (_filenameCtrl.text.trim().isEmpty) missing.add('Όνομα αρχείου');
+        if (_protocolCtrl.text.trim().isEmpty) missing.add('Αρ. Πρωτοκόλλου');
+        if (_receiversCtrl.text.trim().isEmpty) missing.add('Παραλήπτες');
+        if (_subjectCtrl.text.trim().isEmpty) missing.add('Θέμα');
+        if (_contentCtrl.text.trim().isEmpty) missing.add('Περιεχόμενο');
+        if (_selectedDate == null) missing.add('Ημερομηνία');
+        break;
+
+      case 'Άδεια (Κανονική)':
+        if (_filenameCtrl.text.trim().isEmpty) missing.add('Όνομα αρχείου');
+        if (_protocolCtrl.text.trim().isEmpty) missing.add('Αρ. Πρωτοκόλλου');
+        if (_receiversCtrl.text.trim().isEmpty) missing.add('Παραλήπτες');
+        if (_selectedDate == null) missing.add('Ημερομηνία');
+        if (_dateAitisis == null) missing.add('Ημερομηνία Αίτησης');
+        if (_genArtCtrl.text.trim().isEmpty) missing.add('στον / στην');
+        if (_genEndiafCtrl.text.trim().isEmpty) missing.add('ενδιαφερόμενος/η');
+        if (_employCtrl.text.trim().isEmpty) missing.add('Όνομα Εργαζομένου');
+        if (_eidikotitaCtrl.text.trim().isEmpty) missing.add('Κλάδος');
+        if (_numDaysCtrl.text.trim().isEmpty) missing.add('Ημέρες Άδειας');
+        if (_dateFromCtrl == null) missing.add('Ημερομηνία Από');
+        if (_dateToCtrl == null) missing.add('Ημερομηνία Έως');
+        break;
+
+      default:
+        if (_filenameCtrl.text.trim().isEmpty) missing.add('Όνομα αρχείου');
+        if (_protocolCtrl.text.trim().isEmpty) missing.add('Αρ. Πρωτοκόλλου');
+        if (_receiversCtrl.text.trim().isEmpty) missing.add('Παραλήπτες');
+        if (_subjectCtrl.text.trim().isEmpty) missing.add('Θέμα');
+        if (_contentCtrl.text.trim().isEmpty) missing.add('Περιεχόμενο');
+        if (_selectedDate == null) missing.add('Ημερομηνία');
+    }
+
+    // Αν λείπει το subject → μπλοκάρουμε εντελώς
+    if (_subjectCtrl.text.trim().isEmpty) {
+      _snack('Σφάλμα: Το πεδίο Θέμα είναι υποχρεωτικό.');
       return;
     }
 
+    // Αν λείπουν άλλα πεδία → εμφάνιση διαλόγου
+    if (missing.isNotEmpty) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder:
+            (ctx) => AlertDialog(
+              title: const Text('Μη συμπληρωμένα πεδία'),
+              content: Text(
+                'Λείπουν: ${missing.join(', ')}.\n'
+                'Θέλεις να συνεχίσεις την αποθήκευση;',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Άκυρο'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Συνέχεια'),
+                ),
+              ],
+            ),
+      );
+      if (ok != true) return;
+    }
+
+    // ✅ Αποθήκευση
     setState(() => _saving = true);
     try {
-      final data = {
-        'templateId': templateId,
-        'filename': _filenameCtrl.text.trim(),
-        'protocol': _protocolCtrl.text.trim(),
-        'subject': _subjectCtrl.text.trim(),
-        'content': _contentCtrl.text.trim(),
-        'date': Timestamp.fromDate(_selectedDate!),
-        'createdAt': FieldValue.serverTimestamp(),
-      };
+      final data = <String, dynamic>{};
       final col = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('mydocs');
 
+      switch (templateName) {
+        case 'Απλό Έγγραφο':
+          data.addAll({
+            'protocol': _protocolCtrl.text.trim(),
+            'subject': _subjectCtrl.text.trim(),
+            'receivers': _receiversCtrl.text.trim(),
+            'content': _contentCtrl.text.trim(),
+            'date':
+                _selectedDate != null
+                    ? Timestamp.fromDate(_selectedDate!)
+                    : null,
+          });
+          break;
+
+        case 'Άδεια (Κανονική)':
+          data.addAll({
+            'filename': _filenameCtrl.text.trim(),
+            'protocol': _protocolCtrl.text.trim(),
+            'subject': _subjectCtrl.text.trim(),
+            'date':
+                _selectedDate != null
+                    ? Timestamp.fromDate(_selectedDate!)
+                    : null,
+            'receivers': _receiversCtrl.text.trim(),
+            'dateAitisis':
+                _dateAitisis != null ? Timestamp.fromDate(_dateAitisis!) : null,
+
+            'male-female-endiaf': _genEndiafCtrl.text.trim(),
+            'genArt': _genArtCtrl.text.trim(),
+            'eployName': _employCtrl.text.trim(),
+            'eidikotita': _eidikotitaCtrl.text.trim(),
+            'numDays': _numDaysCtrl.text.trim(),
+            'dateFrom':
+                _dateFromCtrl != null
+                    ? Timestamp.fromDate(_dateFromCtrl!)
+                    : null,
+            'dateTo':
+                _dateToCtrl != null ? Timestamp.fromDate(_dateToCtrl!) : null,
+          });
+          break;
+
+        default:
+          data.addAll({
+            'protocol': _protocolCtrl.text.trim(),
+            'receivers': _receiversCtrl.text.trim(),
+            'subject': _subjectCtrl.text.trim(),
+            'content': _contentCtrl.text.trim(),
+            'date':
+                _selectedDate != null
+                    ? Timestamp.fromDate(_selectedDate!)
+                    : null,
+          });
+      }
+      data['templateId'] = templateId;
+      // Αποθήκευση (add ή update)
       _editing
           ? await col.doc(_editingDocId).update(data)
           : await col.add(data);
@@ -126,42 +278,109 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
         .delete();
   }
 
-  // ---------- export ----------
   Future<void> _exportDoc(Map<String, dynamic> docData) async {
     final uid = ref.read(authUidProvider);
     final templateId = ref.read(selectedTemplateIdProvider);
     if (uid == null || templateId == null) return;
 
-    _snack('Εξαγωγή…');
-    showDialog(
+    // Προσθήκη παραθύρου προβολής δεδομένων
+    await showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Προβολή Δεδομένων'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children:
+                    docData.entries.map((entry) {
+                      // Μορφοποίηση ημερομηνιών
+                      dynamic value = entry.value;
+                      if (value is Timestamp) {
+                        value = DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format(value.toDate());
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                '${entry.key}:',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 3,
+                              child: Text(value?.toString() ?? 'null'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Άκυρο'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  // Έναρξη διαδικασίας εξαγωγής
+                  _snack('Εξαγωγή…');
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder:
+                        (_) => const Center(child: CircularProgressIndicator()),
+                  );
+
+                  try {
+                    final settingsSnap =
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(uid)
+                            .collection('settings')
+                            .doc('app')
+                            .get();
+
+                    await ref
+                        .read(driveServiceProvider)
+                        .exportDoc(
+                          uid: uid,
+                          templateId: templateId,
+                          docData: docData,
+                          userSettings: settingsSnap.data() ?? {},
+                        );
+                    if (!context.mounted) return;
+                    Navigator.of(context).pop(); // ✅ κλείνει το spinner
+
+                    _snack('✅ Εξαγωγή επιτυχής');
+                  } catch (e) {
+                    Navigator.of(context).pop(); // ✅ Ασφαλές
+                    _snack('Σφάλμα εξαγωγής: $e');
+                  }
+
+                  if (!context.mounted) {
+                    return; // ✅ Τώρα είναι εκτός του finally
+                  }
+
+                  Navigator.of(context).pop(); // ✅ Ασφαλές
+                },
+                child: const Text('Συνέχεια'),
+              ),
+            ],
+          ),
     );
-
-    try {
-      final settingsSnap =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .collection('settings')
-              .doc('app')
-              .get();
-
-      await ref
-          .read(driveServiceProvider)
-          .exportDoc(
-            uid: uid,
-            templateId: templateId,
-            docData: docData,
-            userSettings: settingsSnap.data() ?? {},
-          );
-      _snack('✅ Εξαγωγή επιτυχής');
-    } catch (e) {
-      _snack('Σφάλμα εξαγωγής: $e');
-    } finally {
-      Navigator.of(context).pop();
-    }
   }
 
   // ---------- build ----------
@@ -221,11 +440,20 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
                               ),
                             )
                             .toList(),
-                    onChanged:
-                        (val) =>
-                            ref
-                                .read(selectedTemplateIdProvider.notifier)
-                                .state = val,
+                    onChanged: (val) {
+                      // αποθηκεύουμε το id
+                      ref.read(selectedTemplateIdProvider.notifier).state = val;
+
+                      // βρίσκουμε το όνομα του template που αντιστοιχεί στο id
+                      final String? name =
+                          items
+                              .firstWhere((t) => t['fileId'] == val)['name']
+                              ?.toString();
+
+                      // αποθηκεύουμε και το όνομα σε ξεχωριστό provider
+                      ref.read(selectedTemplateNameProvider.notifier).state =
+                          name;
+                    },
                   );
                 },
               ),
@@ -233,123 +461,127 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
             const SizedBox(height: 4),
 
             Expanded(
+              flex: 1,
               child: Column(
                 children: [
                   // ----- docs list -----
                   Expanded(
-                    child:
-                        (selectedTemplateId == null || uid == null)
-                            ? const Center(
-                              child: Text('Επιλέξτε τύπο εγγράφου'),
-                            )
-                            : FutureBuilder(
-                              future: ref
-                                  .read(driveServiceProvider)
-                                  .fetchDocs(
-                                    uid: uid,
-                                    templateId: selectedTemplateId,
-                                  ),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-                                if (snapshot.hasError) {
-                                  return Text('Σφάλμα: ${snapshot.error}');
-                                }
-                                final docs =
-                                    snapshot.data
-                                        as List<
-                                          QueryDocumentSnapshot<
-                                            Map<String, dynamic>
-                                          >
-                                        >? ??
-                                    [];
-                                if (docs.isEmpty) {
-                                  return const Center(
-                                    child: Text('Δεν υπάρχουν αρχεία'),
-                                  );
-                                }
-                                return ListView.separated(
-                                  itemCount: docs.length,
-                                  separatorBuilder:
-                                      (_, __) => const Divider(height: 0),
-                                  itemBuilder: (ctx, i) {
-                                    final data = docs[i].data();
-                                    final id = docs[i].id;
-                                    final ts = data['date'] as Timestamp?;
-                                    final dateStr =
-                                        ts != null
-                                            ? DateFormat(
-                                              'dd/MM/yyyy HH:mm',
-                                            ).format(ts.toDate())
-                                            : '-';
-                                    return ListTile(
-                                      title: Text(data['subject'] ?? ''),
-                                      subtitle: Text(
-                                        dateStr,
-                                        style:
-                                            Theme.of(ctx).textTheme.bodySmall,
-                                      ),
-                                      onTap:
-                                          () => setState(() {
-                                            _populateForm(data);
-                                            _showForm = true;
-                                            _viewMode = true;
-                                          }),
-                                      trailing: Wrap(
-                                        spacing: 4,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.edit,
-                                              size: 20,
-                                            ),
-                                            tooltip: 'Επεξεργασία',
-                                            onPressed:
-                                                () => setState(() {
-                                                  _populateForm(data);
-                                                  _showForm = true;
-                                                  _viewMode = false;
-                                                  _editing = true;
-                                                  _editingDocId = id;
-                                                }),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.delete,
-                                              size: 20,
-                                            ),
-                                            tooltip: 'Διαγραφή',
-                                            onPressed: () => _deleteDoc(id),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.cloud_upload,
-                                              size: 20,
-                                            ),
-                                            tooltip: 'Εξαγωγή',
-                                            onPressed: () => _exportDoc(data),
-                                          ),
-                                        ],
-                                      ),
+                    child: BorderedBox(
+                      child:
+                          (selectedTemplateId == null || uid == null)
+                              ? const Center(
+                                child: Text('Επιλέξτε τύπο εγγράφου'),
+                              )
+                              : FutureBuilder(
+                                future: ref
+                                    .read(driveServiceProvider)
+                                    .fetchDocs(
+                                      uid: uid,
+                                      templateId: selectedTemplateId,
+                                    ),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
                                     );
-                                  },
-                                );
-                              },
-                            ),
+                                  }
+                                  if (snapshot.hasError) {
+                                    return Text('Σφάλμα: ${snapshot.error}');
+                                  }
+                                  final docs =
+                                      snapshot.data ??
+                                      <
+                                        QueryDocumentSnapshot<
+                                          Map<String, dynamic>
+                                        >
+                                      >[];
+
+                                  if (docs.isEmpty) {
+                                    return const Center(
+                                      child: Text('Δεν υπάρχουν αρχεία'),
+                                    );
+                                  }
+                                  return ListView.separated(
+                                    itemCount: docs.length,
+                                    separatorBuilder:
+                                        (_, __) => const Divider(height: 0),
+                                    itemBuilder: (ctx, i) {
+                                      final data = docs[i].data();
+                                      final id = docs[i].id;
+                                      final ts = data['date'] as Timestamp?;
+                                      final dateStr =
+                                          ts != null
+                                              ? DateFormat(
+                                                'dd/MM/yyyy HH:mm',
+                                              ).format(ts.toDate())
+                                              : '-';
+                                      return ListTile(
+                                        title: Text(data['subject'] ?? ''),
+                                        subtitle: Text(
+                                          dateStr,
+                                          style:
+                                              Theme.of(ctx).textTheme.bodySmall,
+                                        ),
+                                        onTap:
+                                            () => setState(() {
+                                              _populateForm(data);
+                                              _showForm = true;
+                                              _viewMode = true;
+                                            }),
+                                        trailing: Wrap(
+                                          spacing: 4,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                size: 20,
+                                              ),
+                                              tooltip: 'Επεξεργασία',
+                                              onPressed:
+                                                  () => setState(() {
+                                                    _populateForm(data);
+                                                    _showForm = true;
+                                                    _viewMode = false;
+                                                    _editing = true;
+                                                    _editingDocId = id;
+                                                  }),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                size: 20,
+                                              ),
+                                              tooltip: 'Διαγραφή',
+                                              onPressed: () => _deleteDoc(id),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.cloud_upload,
+                                                size: 20,
+                                              ),
+                                              tooltip: 'Εξαγωγή',
+                                              onPressed: () => _exportDoc(data),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   // ----- form / preview -----
                   Expanded(
+                    flex: 2,
                     child: BorderedBox(
                       child:
                           _showForm
                               ? _bottomBox()
                               : const Center(
-                                child: Text('Επίλεξε αρχείο ή ➕ για νέο'),
+                                child: Text('Επίλεξε αρχείο ή (+) για νέο'),
                               ),
                     ),
                   ),
@@ -362,8 +594,229 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
     );
   }
 
-  // ---------- bottom form ----------
-  Widget _bottomBox() {
+  Widget _saveButton() => ElevatedButton(
+    onPressed: _saving ? null : _saveDoc,
+    child:
+        _saving
+            ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+            : Text(_editing ? 'Ενημέρωση' : 'Αποθήκευση'),
+  );
+
+  void _updateSubjectText(WidgetRef ref) {
+    final templateName = ref.read(selectedTemplateNameProvider) ?? '';
+    final employee = _employCtrl.text.trim();
+    final dateStr =
+        _dateFromCtrl != null
+            ? DateFormat('dd/MM/yyyy').format(_dateFromCtrl!)
+            : '';
+    _subjectCtrl.text = '$employee $templateName $dateStr';
+    _filenameCtrl.text = _subjectCtrl.text;
+  }
+
+  Widget _kanonikiAdeia() {
+    final ro = _viewMode;
+    String? gender;
+
+    final g = _genEndiafCtrl.text;
+    if (g == 'του ενδιαφερόμενου') {
+      gender = 'Άρρεν';
+    } else if (g == 'της ενδιαφερόμενης') {
+      gender = 'Θήλυ';
+    } else {
+      gender = null;
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+
+        children: [
+          TextField(
+            controller: _filenameCtrl,
+            decoration: const InputDecoration(labelText: 'Όνομα αρχείου'),
+            readOnly: true, //ro,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _protocolCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Αρ. Πρωτοκόλλου',
+                  ),
+                  readOnly: ro,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed:
+                      ro
+                          ? null
+                          : () => _pickDateGeneric(
+                            _selectedDate,
+                            (d) => _selectedDate = d,
+                          ),
+                  child: Text(
+                    _selectedDate == null
+                        ? 'Ημερομηνία'
+                        : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _receiversCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(labelText: 'Παραλήπτες'),
+            readOnly: ro,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'Ημερομηνία Αίτησης Άδειας:',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: OutlinedButton(
+                  onPressed:
+                      ro
+                          ? null
+                          : () => _pickDateGeneric(
+                            _dateAitisis,
+                            (d) => setState(() => _dateAitisis = d),
+                          ),
+                  child: Text(
+                    _dateAitisis == null
+                        ? 'Επιλέξτε ημερομηνία Αίτησης'
+                        : DateFormat('dd/MM/yyyy').format(_dateAitisis!),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _employCtrl,
+            decoration: const InputDecoration(labelText: 'Όνομα Εργαζομένου'),
+            onChanged: (_) => _updateSubjectText(ref),
+            readOnly: ro,
+          ),
+
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: TextField(
+                  controller: _eidikotitaCtrl,
+                  decoration: const InputDecoration(labelText: 'Κλάδος'),
+                  readOnly: ro,
+                ),
+              ),
+              const SizedBox(width: 32),
+              Expanded(
+                flex: 1,
+                child: DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(labelText: 'Φύλο'),
+                  value: gender,
+                  items: const [
+                    DropdownMenuItem(value: 'Άρρεν', child: Text('Άρρεν')),
+                    DropdownMenuItem(value: 'Θήλυ', child: Text('Θήλυ')),
+                  ],
+                  onChanged:
+                      _viewMode
+                          ? null
+                          : (v) => setState(() {
+                            gender = v;
+                            if (v == 'Άρρεν') {
+                              _genEndiafCtrl.text = 'του ενδιαφερόμενου';
+                              _genArtCtrl.text = 'στον';
+                            } else if (v == 'Θήλυ') {
+                              _genEndiafCtrl.text = 'της ενδιαφερόμενης';
+                              _genArtCtrl.text = 'στην';
+                            }
+                          }),
+                ),
+              ),
+            ],
+          ),
+
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _numDaysCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Αριθμός Ημερών',
+                  ),
+                  readOnly: ro,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 3,
+                child: OutlinedButton(
+                  onPressed:
+                      ro
+                          ? null
+                          : () => _pickDateGeneric(
+                            _dateFromCtrl,
+                            (d) => setState(() {
+                              _dateFromCtrl = d;
+                              _updateSubjectText(ref); // ✅ σωστό σημείο
+                            }),
+                          ),
+                  child: Text(
+                    _dateFromCtrl == null
+                        ? 'Από'
+                        : DateFormat('dd/MM/yyyy').format(_dateFromCtrl!),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 3,
+                child: OutlinedButton(
+                  onPressed:
+                      ro
+                          ? null
+                          : () => _pickDateGeneric(
+                            _dateToCtrl,
+                            (d) => setState(() => _dateToCtrl = d),
+                          ),
+                  child: Text(
+                    _dateToCtrl == null
+                        ? 'Έως'
+                        : DateFormat('dd/MM/yyyy').format(_dateToCtrl!),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          if (!ro) _saveButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _simpleForm() {
     final ro = _viewMode;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -373,760 +826,79 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
           decoration: const InputDecoration(labelText: 'Όνομα αρχείου'),
           readOnly: ro,
         ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _protocolCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Αρ. Πρωτοκόλλου',
-                        ),
-                        readOnly: ro,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: ro ? null : _pickDate,
-                        child: Text(
-                          _selectedDate == null
-                              ? 'Ημερομηνία'
-                              : DateFormat('dd/MM/yyyy').format(_selectedDate!),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _subjectCtrl,
-                  decoration: const InputDecoration(labelText: 'Θέμα'),
-                  readOnly: ro,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _contentCtrl,
-                  maxLines: 6,
-                  decoration: const InputDecoration(labelText: 'Περιεχόμενο'),
-                  readOnly: ro,
-                ),
-              ],
-            ),
-          ),
-        ),
         const SizedBox(height: 8),
-        if (!ro)
-          ElevatedButton(
-            onPressed: _saving ? null : _saveDoc,
-            child:
-                _saving
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : Text(_editing ? 'Ενημέρωση' : 'Αποθήκευση'),
-          ),
-      ],
-    );
-  }
-}
-
-/*// -----------------------------------------------------------------------------
-// template_dropdown_page.dart  (με bug-fix για το templateId)
-// Λίστα εγγράφων (Edit • Delete • Export) + φόρμα δημιουργίας/προβολής
-// -----------------------------------------------------------------------------
-//  • Τα settings του χρήστη (π.χ. typLine1, schoolAddr …) διαβάζονται
-//    από /users/<uid>/settings/app  και στέλνονται μαζί με τα πεδία φόρμας.
-//  • Έτσι όλα τα {{placeholders}} του template αντικαθίστανται.
-// -----------------------------------------------------------------------------
-//  Για άνοιγμα του URL μετά την εξαγωγή — αν το θες —
-//  πρόσθεσε στο pubspec.yaml το url_launcher (^6.2.5) και άφησε το import.
-//
-//  dependencies:
-//    url_launcher: ^6.2.5
-// -----------------------------------------------------------------------------
-
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-// ignore: unused_import import
-import 'package:url_launcher/url_launcher.dart';
-
-// import 'package:url_launcher/url_launcher.dart';   // ← προαιρετικό
-import 'mylib/mywidgets.dart';
-
-// -----------------------------------------------------------------------------
-// Config
-// -----------------------------------------------------------------------------
-const String scriptUrl =
-    'https://script.google.com/macros/s/AKfycbzNZv85DPuXnNgaM_4nS8sg5k9XT9gtSWC5LpK7H4uWUj3BYYc5G39Qzcq_PYtPsI-f/exec';
-const String proxyExportUrl = 'https://proxyexport-mhdemkezbq-uc.a.run.app';
-const String defaultFolderId = '1gQCEPMZ5y4PJX9NW73qQHMejfHN-FPcL';
-
-// -----------------------------------------------------------------------------
-// Page
-// -----------------------------------------------------------------------------
-class TemplateDropdownPage extends StatefulWidget {
-  const TemplateDropdownPage({super.key});
-  @override
-  State<TemplateDropdownPage> createState() => _TemplateDropdownPageState();
-}
-
-class _TemplateDropdownPageState extends State<TemplateDropdownPage> {
-  //──────────────────────────────── TEMPLATES ──────────────────────────────
-  List<Map<String, String>> _templates = [];
-  bool _loadingTemplates = true;
-  String? _selectedFileId;
-  String? _selectedName;
-
-  //──────────────────────────────── DOCS ────────────────────────────────────
-  bool _loadingDocs = false;
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _docs = [];
-
-  // ignore: unused_field
-  QueryDocumentSnapshot<Map<String, dynamic>>? _selectedDoc;
-
-  //──────────────────────────────── FORM ────────────────────────────────────
-  bool _showForm = false;
-  bool _viewMode = false;
-  bool _saving = false;
-  bool _editing = false;
-  String? _editingDocId;
-
-  final _filenameCtrl = TextEditingController();
-  final _protocolCtrl = TextEditingController();
-  final _subjectCtrl = TextEditingController();
-  final _contentCtrl = TextEditingController();
-  DateTime? _selectedDate;
-
-  @override
-  void dispose() {
-    _filenameCtrl.dispose();
-    _protocolCtrl.dispose();
-    _subjectCtrl.dispose();
-    _contentCtrl.dispose();
-    super.dispose();
-  }
-
-  //────────────────────────────── INIT / FETCH TEMPLATES ───────────────────
-  @override
-  void initState() {
-    super.initState();
-    _fetchTemplates();
-  }
-
-  Future<void> _fetchTemplates() async {
-    try {
-      final res = await http
-          .get(Uri.parse('$scriptUrl?action=listTemplates'))
-          .timeout(const Duration(seconds: 10));
-
-      if (res.statusCode != 200) {
-        throw HttpException('HTTP ${res.statusCode}');
-      }
-
-      final decoded = jsonDecode(res.body);
-      final List<dynamic> raw =
-          (decoded is Map &&
-                  decoded['ok'] == true &&
-                  decoded['templates'] is List)
-              ? decoded['templates']
-              : throw const FormatException('Bad schema');
-
-      final t =
-          raw
-              .map<Map<String, String>>(
-                (e) => {
-                  'name': e['name'].toString(),
-                  'fileId': e['fileId'].toString(),
-                },
-              )
-              .toList()
-            ..sort(
-              (a, b) =>
-                  a['name']!.toLowerCase().compareTo(b['name']!.toLowerCase()),
-            );
-
-      if (!mounted) return;
-      setState(() {
-        _templates = t;
-        _loadingTemplates = false;
-
-        // ► αν δεν έχει επιλεγεί template, επέλεξε το πρώτο
-        if (_selectedFileId == null && _templates.isNotEmpty) {
-          _selectedFileId = _templates.first['fileId'];
-          _selectedName = _templates.first['name'];
-          _fetchDocsForTemplate();
-        }
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingTemplates = false);
-      _showErrorDialog('Σφάλμα template: $e', _fetchTemplates);
-    }
-  }
-
-  //────────────────────────────── FETCH DOCS (client-side sort) ────────────
-  Future<void> _fetchDocsForTemplate() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null || _selectedFileId == null) return;
-
-    setState(() => _loadingDocs = true);
-
-    try {
-      final snap =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .collection('mydocs')
-              .where('templateId', isEqualTo: _selectedFileId)
-              .get();
-
-      final docs =
-          snap.docs..sort((a, b) {
-            final ta = a['createdAt'] as Timestamp?;
-            final tb = b['createdAt'] as Timestamp?;
-            return (tb?.millisecondsSinceEpoch ?? 0).compareTo(
-              ta?.millisecondsSinceEpoch ?? 0,
-            );
-          });
-
-      if (!mounted) return;
-      setState(() {
-        _docs = docs;
-        _loadingDocs = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingDocs = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Σφάλμα αρχείων: $e')));
-    }
-  }
-
-  //────────────────────────────── JSON helper ───────────────────────────────
-  // ignore: unused_element
-  dynamic _jsonReady(dynamic v) {
-    if (v is Timestamp) return v.toDate().toIso8601String();
-    if (v is Map) {
-      return v.map((k, val) => MapEntry(k.toString(), _jsonReady(val)));
-    }
-    if (v is List) return v.map(_jsonReady).toList();
-    return v;
-  }
-
-  // ---------------------------------------------------------------------------
-  // EXPORT – στέλνει ΜΟΝΟ τα keys του template
-  // ---------------------------------------------------------------------------
-
-  // …
-
-  Future<void> _exportDoc(Map<String, dynamic> docData) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    // ► modal spinner
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      /* 1.  placeholders του template */
-      final keysRes = await http.get(
-        Uri.parse(
-          '$scriptUrl?action=listKeys&templateId=${Uri.encodeComponent(_selectedFileId ?? '')}',
-        ),
-      );
-      final decodedKeys = jsonDecode(keysRes.body);
-      if (decodedKeys['ok'] != true) throw 'listKeys error: ${keysRes.body}';
-      final List<String> keys = List<String>.from(decodedKeys['keys']);
-
-      /* 2.  settings χρήστη */
-      final settingsSnap =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .collection('settings')
-              .doc('app')
-              .get();
-      final settings = settingsSnap.data() ?? {};
-
-      /* 3.  πεδία φόρμας */
-      final formFields = {
-        'subject': docData['subject'],
-        'title': docData['subject'],
-        'protocol': docData['protocol'],
-        'date': DateFormat(
-          'dd/MM/yyyy',
-        ).format((docData['date'] as Timestamp).toDate()),
-      };
-
-      /* 4.  record ΜΟΝΟ με τα ζητούμενα keys */
-      final record = <String, dynamic>{};
-      for (final k in keys) {
-        if (formFields.containsKey(k)) {
-          record[k] = formFields[k];
-        } else if (settings.containsKey(k)) {
-          record[k] = settings[k];
-        } else {
-          record[k] = 'ΑΓΝΩΣΤΟ:$k';
-        }
-      }
-
-      /* 5.  φάκελος προορισμού */
-      final folderId = _extractId(
-        (settings['googleFolder'] as String?) ?? defaultFolderId,
-      );
-
-      final payload = {
-        'uid': uid,
-        'folderId': folderId,
-        'scriptUrl': scriptUrl,
-        'templateId': _selectedFileId,
-        'filename': docData['filename'],
-        'record': record,
-      };
-
-      final res = await http.post(
-        Uri.parse(proxyExportUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      );
-
-      final decodedExport = jsonDecode(res.body);
-
-      if (!mounted) return;
-
-      if (res.statusCode == 200 && decodedExport['ok'] == true) {
-        // ► άνοιγμα εγγράφου
-        /*final urlStr = decodedExport['url']?.toString();
-        if (urlStr != null && urlStr.isNotEmpty) {
-          final uri = Uri.parse(urlStr);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-        }
-        */
-        
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('✅ Εξαγωγή επιτυχής')));
-      } else {
-        throw 'export error: HTTP ${res.statusCode} → ${res.body}';
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Σφάλμα εξαγωγής: $e')));
-    } finally {
-      // ► κλείσιμο spinner ό,τι κι αν έγινε
-      if (mounted) Navigator.of(context).pop();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Helper – εξάγει το ID από URL ή επιστρέφει άθικτο το ID
-  // ---------------------------------------------------------------------------
-  String _extractId(String input) =>
-      RegExp(r'[-\w]{25,}').firstMatch(input)?.group(0) ?? input;
-
-  // ---------------------------------------------------------------------------
-  // Φόρμα – populate / clear / pickDate
-  // ---------------------------------------------------------------------------
-  void _populateForm(Map<String, dynamic> d) {
-    _filenameCtrl.text = d['filename'] ?? '';
-    _protocolCtrl.text = d['protocol'] ?? '';
-    _subjectCtrl.text = d['subject'] ?? '';
-    _contentCtrl.text = d['content'] ?? '';
-    _selectedDate = (d['date'] as Timestamp?)?.toDate();
-  }
-
-  void _clearForm() {
-    _filenameCtrl.clear();
-    _protocolCtrl.clear();
-    _subjectCtrl.clear();
-    _contentCtrl.clear();
-    _selectedDate = null;
-  }
-
-  Future<void> _pickDate() async {
-    if (_viewMode) return;
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(DateTime.now().year - 5),
-      lastDate: DateTime(DateTime.now().year + 1),
-    );
-    if (date != null) setState(() => _selectedDate = date);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Delete document
-  // ---------------------------------------------------------------------------
-  Future<void> _deleteDoc(String docId) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder:
-          (c) => AlertDialog(
-            title: const Text('Διαγραφή'),
-            content: const Text('Να διαγραφεί το αρχείο;'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('Άκυρο'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: const Text('Διαγραφή'),
-              ),
-            ],
-          ),
-    );
-    if (ok != true) return;
-
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('mydocs')
-        .doc(docId)
-        .delete();
-
-    await _fetchDocsForTemplate();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Save (add ή update)
-  // ---------------------------------------------------------------------------
-  Future<void> _saveDoc() async {
-    if (_viewMode) return;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    final filename = _filenameCtrl.text.trim();
-    final protocol = _protocolCtrl.text.trim();
-    final subject = _subjectCtrl.text.trim();
-    final content = _contentCtrl.text.trim();
-    final date = _selectedDate;
-
-    if ([filename, protocol, subject, content].any((v) => v.isEmpty) ||
-        date == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❗ Συμπλήρωσε όλα τα πεδία')),
-      );
-      return;
-    }
-
-    setState(() => _saving = true);
-
-    try {
-      final data = {
-        'templateId': _selectedFileId,
-        'templateName': _selectedName,
-        'filename': filename,
-        'protocol': protocol,
-        'subject': subject,
-        'content': content,
-        'date': Timestamp.fromDate(date),
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-
-      final col = FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('mydocs');
-
-      if (_editing) {
-        await col.doc(_editingDocId).update(data);
-      } else {
-        await col.add(data);
-      }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('✅ Αποθηκεύτηκε')));
-
-      await _fetchDocsForTemplate();
-      setState(() => _showForm = false);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Σφάλμα αποθήκευσης: $e')));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-      _editing = false;
-      _editingDocId = null;
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Λίστα αρχείων
-  // ---------------------------------------------------------------------------
-  Widget _listBox() {
-    if (_loadingDocs) return const Center(child: CircularProgressIndicator());
-    if (_docs.isEmpty) return const Center(child: Text('Δεν υπάρχουν αρχεία'));
-
-    return ListView.separated(
-      itemCount: _docs.length,
-      separatorBuilder: (_, __) => const Divider(height: 0),
-      itemBuilder: (context, i) {
-        final data = _docs[i].data();
-        final id = _docs[i].id;
-        final ts = data['date'] as Timestamp;
-        final dateStr = DateFormat('dd/MM/yyyy  HH:mm:ss').format(ts.toDate());
-
-        return ListTile(
-          title: Text(data['subject'] ?? ''),
-          subtitle: Text(dateStr, style: Theme.of(context).textTheme.bodySmall),
-          onTap: () {
-            setState(() {
-              _selectedDoc = _docs[i];
-              _populateForm(data);
-              _showForm = true;
-              _viewMode = true;
-            });
-          },
-          trailing: Wrap(
-            spacing: 4,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                tooltip: 'Επεξεργασία',
-                onPressed: () {
-                  setState(() {
-                    _selectedDoc = _docs[i];
-                    _populateForm(data);
-                    _showForm = true;
-                    _viewMode = false;
-                    _editing = true;
-                    _editingDocId = id;
-                  });
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                tooltip: 'Διαγραφή',
-                onPressed: () => _deleteDoc(id),
-              ),
-              IconButton(
-                icon: const Icon(Icons.cloud_upload, size: 18),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                tooltip: 'Εξαγωγή σε Drive',
-                onPressed: () => _exportDoc(data),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Κάτω πλαίσιο (φόρμα / preview)
-  // ---------------------------------------------------------------------------
-  Widget _bottomBox() {
-    if (!_showForm) {
-      return const Center(child: Text('Επίλεξε αρχείο ή (+) για νέο'));
-    }
-
-    final ro = _viewMode; // readOnly
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: _filenameCtrl,
-          decoration: const InputDecoration(labelText: 'Όνομα αρχείου'),
-          readOnly: ro,
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _protocolCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Αρ. Πρωτοκόλλου',
-                        ),
-                        readOnly: ro,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: ro ? null : _pickDate,
-                        child: Text(
-                          _selectedDate == null
-                              ? 'Ημερομηνία'
-                              : DateFormat('dd/MM/yyyy').format(_selectedDate!),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _subjectCtrl,
-                  decoration: const InputDecoration(labelText: 'Θέμα'),
-                  readOnly: ro,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _contentCtrl,
-                  maxLines: 6,
-                  decoration: const InputDecoration(labelText: 'Περιεχόμενο'),
-                  readOnly: ro,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (!ro)
-          ElevatedButton(
-            onPressed: _saving ? null : _saveDoc,
-            child:
-                _saving
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : Text(_editing ? 'Ενημέρωση' : 'Αποθήκευση'),
-          ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Build UI
-  // ---------------------------------------------------------------------------
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Έγγραφα')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_selectedFileId == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Πρώτα επιλέξτε template')),
-            );
-            return;
-          }
-          setState(() {
-            _showForm = true;
-            _viewMode = false;
-            _editing = false;
-            _selectedDoc = null;
-            _clearForm();
-          });
-        },
-        child: const Icon(Icons.add),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        Row(
           children: [
-            BorderedBox(
-              child:
-                  _loadingTemplates
-                      ? const Center(child: CircularProgressIndicator())
-                      : DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(
-                          labelText: 'Επιλέξτε τύπο εγγράφου',
-                        ),
-                        value: _selectedFileId,
-                        items:
-                            _templates
-                                .map(
-                                  (t) => DropdownMenuItem(
-                                    value: t['fileId'],
-                                    child: Text(t['name']!),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (val) async {
-                          setState(() {
-                            _selectedFileId = val;
-                            _selectedName =
-                                _templates.firstWhere(
-                                  (t) => t['fileId'] == val,
-                                )['name'];
-                            _showForm = false;
-                            _selectedDoc = null;
-                          });
-                          await _fetchDocsForTemplate();
-                        },
-                      ),
+            Expanded(
+              child: TextField(
+                controller: _protocolCtrl,
+                decoration: const InputDecoration(labelText: 'Αρ. Πρωτοκόλλου'),
+                readOnly: ro,
+              ),
             ),
-            const SizedBox(height: 4),
-            Expanded(flex: 1, child: BorderedBox(child: _listBox())),
-            const SizedBox(height: 4),
-            Expanded(flex: 2, child: BorderedBox(child: _bottomBox())),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                onPressed:
+                    ro
+                        ? null
+                        : () => _pickDateGeneric(
+                          _selectedDate,
+                          (d) => _selectedDate = d,
+                        ),
+                child: Text(
+                  _selectedDate == null
+                      ? 'Ημερομηνία'
+                      : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+                ),
+              ),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _receiversCtrl,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Παραλήπτες'),
+          readOnly: ro,
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _subjectCtrl,
+          decoration: const InputDecoration(labelText: 'Θέμα'),
+          readOnly: ro,
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: TextField(
+            controller: _contentCtrl,
+            maxLines: null,
+            expands: true,
+            decoration: const InputDecoration(labelText: 'Περιεχόμενο'),
+            readOnly: ro,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (!ro) _saveButton(),
+      ],
     );
   }
 
-  //------------------------------------------------------------------------------
-  // Helper: εμφανίζει AlertDialog σφάλματος + προαιρετικό κουμπί Retry
-  //------------------------------------------------------------------------------
-  Future<void> _showErrorDialog(String message, [VoidCallback? onRetry]) async {
-    if (!mounted) return;
+  Widget _bottomBox() {
+    if (!_showForm) return const SizedBox();
 
-    await showDialog(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Σφάλμα σύνδεσης'),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
-              ),
-              if (onRetry != null)
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    onRetry();
-                  },
-                  child: const Text('Retry'),
-                ),
-            ],
-          ),
-    );
+    // διαβάζουμε το όνομα που έχει επιλέξει ο χρήστης
+    final templateName = ref.read(selectedTemplateNameProvider);
+
+    switch (templateName) {
+      case 'Απλό Έγγραφο':
+        return _simpleForm();
+
+      case 'Άδεια (Κανονική)':
+        return _kanonikiAdeia(); // Άδεια (Κανονική)
+
+      default:
+        return _simpleForm();
+    }
   }
 }
-*/
