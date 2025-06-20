@@ -200,6 +200,7 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
       switch (templateName) {
         case 'Απλό Έγγραφο':
           data.addAll({
+            'filename': _filenameCtrl.text.trim(),
             'protocol': _protocolCtrl.text.trim(),
             'subject': _subjectCtrl.text.trim(),
             'receivers': _receiversCtrl.text.trim(),
@@ -240,6 +241,7 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
 
         default:
           data.addAll({
+            'filename': _filenameCtrl.text.trim(),
             'protocol': _protocolCtrl.text.trim(),
             'receivers': _receiversCtrl.text.trim(),
             'subject': _subjectCtrl.text.trim(),
@@ -251,6 +253,8 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
           });
       }
       data['templateId'] = templateId;
+      data['createdAt'] = FieldValue.serverTimestamp();
+
       // Αποθήκευση (add ή update)
       _editing
           ? await col.doc(_editingDocId).update(data)
@@ -353,14 +357,30 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
                             .doc('app')
                             .get();
 
+                    final settings = settingsSnap.data();
+
+                    if (settings == null || settings['googleFolder'] == null) {
+                      if (context.mounted) {
+                        Navigator.of(
+                          context,
+                        ).pop(); // Κλείνει τυχόν spinner dialog
+                        _snack(
+                          '⚠️ Δεν έχει οριστεί φάκελος Google Drive για εξαγωγή.',
+                        );
+                      }
+                      return; // ➤ σταματάει η εξαγωγή
+                    }
+
+                    // ✅ Συνέχεια αν όλα OK
                     await ref
                         .read(driveServiceProvider)
                         .exportDoc(
                           uid: uid,
                           templateId: templateId,
                           docData: docData,
-                          userSettings: settingsSnap.data() ?? {},
+                          userSettings: settings,
                         );
+
                     if (!context.mounted) return;
                     Navigator.of(context).pop(); // ✅ κλείνει το spinner
 
@@ -443,7 +463,7 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
                     onChanged: (val) {
                       // αποθηκεύουμε το id
                       ref.read(selectedTemplateIdProvider.notifier).state = val;
-
+                      _showForm = false;
                       // βρίσκουμε το όνομα του template που αντιστοιχεί στο id
                       final String? name =
                           items
@@ -758,12 +778,10 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
           Row(
             children: [
               Expanded(
-                flex: 2,
+                flex: 1,
                 child: TextField(
                   controller: _numDaysCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Αριθμός Ημερών',
-                  ),
+                  decoration: const InputDecoration(labelText: '#Ημ.Αδ.'),
                   readOnly: ro,
                 ),
               ),
@@ -818,69 +836,77 @@ class _TemplateDropdownPageState extends ConsumerState<TemplateDropdownPage> {
 
   Widget _simpleForm() {
     final ro = _viewMode;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: _filenameCtrl,
-          decoration: const InputDecoration(labelText: 'Όνομα αρχείου'),
-          readOnly: ro,
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _protocolCtrl,
-                decoration: const InputDecoration(labelText: 'Αρ. Πρωτοκόλλου'),
-                readOnly: ro,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton(
-                onPressed:
-                    ro
-                        ? null
-                        : () => _pickDateGeneric(
-                          _selectedDate,
-                          (d) => _selectedDate = d,
-                        ),
-                child: Text(
-                  _selectedDate == null
-                      ? 'Ημερομηνία'
-                      : DateFormat('dd/MM/yyyy').format(_selectedDate!),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _receiversCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Παραλήπτες'),
-          readOnly: ro,
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _subjectCtrl,
-          decoration: const InputDecoration(labelText: 'Θέμα'),
-          readOnly: ro,
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: TextField(
-            controller: _contentCtrl,
-            maxLines: null,
-            expands: true,
-            decoration: const InputDecoration(labelText: 'Περιεχόμενο'),
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _filenameCtrl,
+            decoration: const InputDecoration(labelText: 'Όνομα αρχείου'),
             readOnly: ro,
           ),
-        ),
-        const SizedBox(height: 8),
-        if (!ro) _saveButton(),
-      ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _protocolCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Αρ. Πρωτοκόλλου',
+                  ),
+                  readOnly: ro,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed:
+                      ro
+                          ? null
+                          : () => _pickDateGeneric(
+                            _selectedDate,
+                            (d) => setState(() => _selectedDate = d),
+                          ),
+                  child: Text(
+                    _selectedDate == null
+                        ? 'Ημερομηνία'
+                        : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _receiversCtrl,
+            maxLines: 2,
+            decoration: const InputDecoration(labelText: 'Παραλήπτες'),
+            readOnly: ro,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _subjectCtrl,
+            maxLines: 1,
+            decoration: const InputDecoration(labelText: 'Θέμα'),
+            readOnly: ro,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 120,
+            child: TextField(
+              controller: _contentCtrl,
+              maxLines: null,
+              expands: true,
+              //minLines: null,
+              decoration: const InputDecoration(labelText: 'Περιεχόμενο'),
+              readOnly: ro,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (!ro) _saveButton(),
+        ],
+      ),
     );
   }
 

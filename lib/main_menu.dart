@@ -73,7 +73,7 @@ class MainMenu extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Διπλωματική Εργάσια με θέμα:\n'),
+                  Text('Διπλωματική Εργάσια με θέμα:'),
                   Text(
                     'Σχεδίαση και Ανάπτυξη Εφαρμογής Κινητού',
                     style: TextStyle(fontWeight: FontWeight.bold),
@@ -83,7 +83,7 @@ class MainMenu extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    'της Διοίκησης Σχολικής Μονάδας\n\n\n\n',
+                    'της Διοίκησης Σχολικής Μονάδας\n',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text('του μεταταπτυχιακού φοιτητή'),
@@ -93,8 +93,11 @@ class MainMenu extends StatelessWidget {
                   ),
                   Text('Επιβλέπον Καθηγητής'),
                   Text(
-                    'Τσιλίκας Νικόλαος',
+                    'Τσιλίκας Νικόλαος\n',
                     style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Σημ: Ενημερώσετε στις ρυθμίσεις το\nDrive Κοινόχρηστος Φάκελλος',
                   ),
                 ],
               ),

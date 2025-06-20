@@ -1,0 +1,7 @@
+{
+  "@@locale": "en",
+  "signInText": "Sign in",
+  "@signInText": {
+    "description": "Label for sign in"
+  }
+}

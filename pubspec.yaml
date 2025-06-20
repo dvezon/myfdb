@@ -22,6 +22,7 @@ dependencies:
  # Google sign-in
   google_sign_in: ^6.2.1
 
+
   # Google REST APIs & auth helpers
   googleapis: ^13.1.0          # Docs / Drive live here
   googleapis_auth: ^1.4.1      # authenticatedClient helper
@@ -43,9 +44,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
+  intl_utils: ^2.8.3
 
 flutter:
   uses-material-design: true
-
+  generate: true
   assets:
     - assets/gsheets_credentials.json
+
+  # Localization configuration
+ 
+
+flutter_intl:
+  enabled: true
+  arb-dir: lib/l10n
+  template-arb-file: firebase_ui_el.arb
+  output-localization-file: firebase_ui_localizations.dart

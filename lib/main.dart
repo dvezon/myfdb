@@ -15,7 +15,6 @@ import 'main_menu.dart';
 import 'appointments_page.dart';
 import 'event_diary_page.dart';
 import 'screen_settings.dart';
-import 'mylib/greek_localizations.dart';
 import 'create_doc.dart';
 import 'mylib/mywidgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,14 +80,13 @@ class MyApp extends StatelessWidget {
       title: 'School Admin',
       debugShowCheckedModeBanner: false,
 
-      locale: const Locale('el'),
       supportedLocales: const [Locale('el'), Locale('en')],
       localizationsDelegates: const [
         FirebaseUILocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
-        GreekLocalizationsDelegate(),
+        //GreekLocalizationsDelegate(),
       ],
 
       theme: ThemeData(
@@ -169,6 +167,9 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // final labels = FirebaseUILocalizations.labelsOf(context);
+    //   print(labels.runtimeType); // για να δεις τι τύπος είναι
+    //  print(labels); // για να δεις τι έχει διαθέσιμο
     final user = auth.FirebaseAuth.instance.currentUser;
     return Scaffold(
       appBar: AppBar(
