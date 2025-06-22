@@ -1,62 +1,59 @@
-name: myfbd
-description: A new Flutter project.
-publish_to: 'none'
+name: myfbd                           # Το εσωτερικό αναγνωριστικό ονόματος του πακέτου Dart/Flutter. Χρησιμοποιείται στο Pub (package manager) και στο Android manifest.
+description: A new Flutter project.   # Σύντομη περιγραφή – εμφανίζεται στο pub.dev αν το πακέτο δημοσιευτεί.
+publish_to: 'none'                    # Εντολή στο Pub να μην δημοσιευτεί (π.χ. ιδιωτικό project).
 
-version: 1.0.0+1
+version: 1.0.0+1                      # Semantic versioning (1.0.0) και build number (+1). Το build number είναι υποχρεωτικό για iOS/Android store uploads.
 
 environment:
-  sdk: ^3.7.2
+  sdk: ^3.7.2                         # Ορίζει ότι το πακέτο απαιτεί Dart ≥ 3.7.2 αλλά < 4.0.0.
 
 dependencies:
   flutter:
-    sdk: flutter
-
-  firebase_core: ^2.32.0
-  firebase_auth: ^4.19.2
-  firebase_ui_auth: ^1.14.0
-  firebase_ui_localizations: ^1.14.0
-  firebase_ui_oauth_google: ^1.2.13
-  cloud_firestore: ^4.17.1
-  http: ^1.2.1
-  shared_preferences: ^2.2.2
+    sdk: flutter                      # Βασική εξάρτηση στο ίδιο το SDK Flutter.
+  firebase_core: ^2.32.0              # Αρχικοποίηση Firebase στο Flutter.
+  firebase_auth: ^4.19.2              # Βασικό API αυθεντικοποίησης (Email/Password, κ.λπ.).
+  firebase_ui_auth: ^1.14.0           # Firebase UI Auth βιβλιοθήκες – έτοιμα widgets login / register + τοπικοποίηση + OAuth μέσω Google.
+  firebase_ui_localizations: ^1.14.0  #  
+  firebase_ui_oauth_google: ^1.2.13   # 
+  cloud_firestore: ^4.17.1            # Client SDK για την NoSQL βάση Cloud Firestore.
+  http: ^1.2.1                        # Βασικές κλήσεις REST over HTTP.
+  shared_preferences: ^2.2.2          # Ελαφριά αποθήκευση (key-value) σε κινητό & web.
  # Google sign-in
-  google_sign_in: ^6.2.1
-
+  google_sign_in: ^6.2.1              # Native ροή Google Login για Android/iOS.
 
   # Google REST APIs & auth helpers
-  googleapis: ^13.1.0          # Docs / Drive live here
-  googleapis_auth: ^1.4.1      # authenticatedClient helper
-  url_launcher: ^6.2.5
-  flutter_riverpod: ^2.4.0 
+  googleapis: ^13.1.0                 # Αυτόματο REST client & helpers για Google APIs (Drive, Docs κ.λπ.) με OAuth 2.
+  googleapis_auth: ^1.4.1             # 
+  url_launcher: ^6.2.5                # Άνοιγμα εξωτερικών URIs (mailto:, https:, tel:) με το σύστημα.
+  flutter_riverpod: ^2.4.0            # Το state-management framework που χρησιμοποιείς.
 
      
 
 
-  cloud_functions: ^4.5.5
+  cloud_functions: ^4.5.5             # Πρόσβαση σε Firebase Cloud Functions (callable).
 
   # --- Utilities ---
-  intl: any
+  intl: any                           # Η διεθνικοποίηση (μορφοποίηση ημερομηνιών, νομισμάτων)· το any σημαίνει «πάρε την πιο πρόσφατη stable».
   
-  flutter_localizations:
-    sdk: flutter
+  flutter_localizations:              # Ενεργοποιεί τα επίσημα delegates μετάφρασης (Material, Cupertino, Widgets) στο Flutter SDK.
+    sdk: flutter                      # Δηλώνει ότι το package προέρχεται από το ίδιο το SDK, όχι από pub.dev.
 
-dev_dependencies:
+dev_dependencies:                     # Ενότητα βιβλιοθηκών που χρειάζονται μόνο σε development / test — δεν μπαίνουν στο τελικό APK/IPA.
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
   intl_utils: ^2.8.3
 
-flutter:
+flutter:                              # Μπλοκ ρυθμίσεων ειδικών για το Flutter tool.
   uses-material-design: true
   generate: true
   assets:
-    - assets/gsheets_credentials.json
+    - assets/gsheets_credentials.json # Συγκεκριμένο JSON credential για Google Sheets API—θα αντιγραφεί στο assets/ του app και θα φορτώνεται με rootBundle.loadString().
 
   # Localization configuration
  
-
 flutter_intl:
-  enabled: true
-  arb-dir: lib/l10n
-  template-arb-file: firebase_ui_el.arb
-  output-localization-file: firebase_ui_localizations.dart
+  enabled: true                       # Ενεργοποιεί τον generator—χωρίς αυτό δεν θα παραχθούν αρχεία τοπικοποίησης.
+  arb-dir: lib/l10n                   # Φάκελος όπου βρίσκονται τα .arb αρχεία μεταφράσεων.
+  template-arb-file: firebase_ui_el.arb   # Ορίζει ποιο .arb χρησιμεύει ως πρότυπο ελληνικό base
+  output-localization-file: firebase_ui_localizations.dart   #Το όνομα του παραγόμενου Dart αρχείου με τις κλάσεις Localizations.
